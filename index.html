@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spyne Executive Dashboard</title>
+<style>
+  :root{
+    --ivory-50:#FBF8F3;
+    --ivory-100:#F6F1E8;
+    --ink-900:#211A15;
+    --wine-500:#8F3A53;
+    --wine-600:#7A2E45;
+    --gold-300:#C6A86B;
+    --taupe-400:#A89A8C;
+    --text-body:#3D342C;
+    --text-muted:#8A7D6F;
+    --border-subtle:#E9E1D4;
+    --border-strong:#D8CDBB;
+    --success-500:#5C7A52;
+    --shadow-sm:0 1px 3px rgba(33,26,21,0.07), 0 1px 2px rgba(33,26,21,0.05);
+    --shadow-lg:0 18px 40px rgba(33,26,21,0.22);
+    --tracking-caps:0.14em;
+    --tracking-wide:0.04em;
+    --ease-lux:cubic-bezier(.4,0,.2,1);
+    --font-display:"Bodoni Moda","Bodoni 72",Didot,"Didot LT STD","Playfair Display",Georgia,serif;
+    --font-sans:"Hanken Grotesk","Avenir Next",Avenir,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  }
+  @keyframes livepulse { 0%{ opacity:1; transform:scale(1);} 50%{opacity:.35; transform:scale(.82);} 100%{opacity:1; transform:scale(1);} }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+  body{ margin:0; background:var(--ivory-100); }
+  a{ color:var(--wine-600); text-decoration:none; }
+  a:hover{ color:var(--wine-500); }
+  *{ box-sizing:border-box; }
+  .blank{ color:var(--border-strong) !important; }
+  .page-scroll{ overflow-x:auto; }
+</style>
+</head>
+<body>
+
+
+<div class="page-scroll">
+<div style="width:1600px; margin:0 auto; background:var(--ivory-100); font-family:var(--font-sans); color:var(--text-body);">
+
+  <!-- Announcement / context bar -->
+  <div style="background:var(--ink-900); color:var(--ivory-50); font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; text-align:center; padding:10px 24px; font-weight:600;">
+    Confidential · Board &amp; Leadership Distribution Only
+  </div>
+
+  <!-- Header -->
+  <header style="background:rgba(251,248,243,0.92); border-bottom:1px solid var(--border-subtle);">
+    <div style="padding:22px 40px; display:flex; align-items:center; justify-content:space-between; gap:24px;">
+      <div style="display:flex; align-items:center; gap:20px;">
+        <div style="font-family:var(--font-sans); font-weight:800; font-size:26px; letter-spacing:0.30em; color:var(--ink-900);">SPYNE</div>
+        <div style="width:1px; height:34px; background:var(--border-strong);"></div>
+        <div>
+          <div style="font-family:var(--font-display); font-size:27px; font-weight:500; color:var(--ink-900); line-height:1;">Executive Report</div>
+          <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); margin-top:5px;">Daily · Month-to-Date</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:28px;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <span style="width:11px; height:11px; border-radius:50%; background:var(--success-500); display:inline-block; animation:livepulse 2s var(--ease-lux) infinite;"></span>
+          <span style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600;">Live · synced <span id="syncedAt"></span></span>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--font-display); font-size:24px; color:var(--ink-900); line-height:1;" id="reportMonth"></div>
+          <div style="font-size:13px; color:var(--text-muted); letter-spacing:var(--tracking-caps); text-transform:uppercase; margin-top:4px;">as of <span id="asOf"></span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main style="padding:32px 40px 40px;">
+
+    <!-- HERO KPI band (Company) -->
+    <section style="background:var(--ink-900); border-radius:22px; padding:36px 44px; box-shadow:var(--shadow-lg); position:relative; overflow:hidden; margin-bottom:26px;">
+      <div style="position:absolute; inset:0; background:linear-gradient(120deg, rgba(122,46,69,0.32), rgba(33,26,21,0) 55%); pointer-events:none;"></div>
+      <div style="position:relative; display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:28px;">
+        <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--gold-300); font-weight:600;">Company Headline · Investor View</div>
+        <div style="font-size:14px; color:var(--taupe-400);">ARR in USD millions · MTD unless noted</div>
+      </div>
+      <div style="position:relative; display:grid; grid-template-columns:repeat(4, 1fr); gap:40px;">
+        <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
+          <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">LARR</div>
+          <div style="font-family:var(--font-display); font-size:66px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:12px 0 10px;">—</div>
+          <div style="font-size:15px; color:var(--taupe-400);">Live ARR</div>
+        </div>
+        <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
+          <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">CARR</div>
+          <div style="font-family:var(--font-display); font-size:66px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:12px 0 10px;">—</div>
+          <div style="font-size:15px; color:var(--taupe-400);">Contracted ARR</div>
+        </div>
+        <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
+          <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">GRR</div>
+          <div style="font-family:var(--font-display); font-size:66px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:12px 0 10px;">—</div>
+          <div style="font-size:15px; color:var(--taupe-400);">Gross Revenue Retention</div>
+        </div>
+        <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
+          <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">NRR</div>
+          <div style="font-family:var(--font-display); font-size:66px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:12px 0 10px;">—</div>
+          <div style="font-size:15px; color:var(--taupe-400);">Net Revenue Retention</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Legend -->
+    <div style="display:flex; align-items:center; justify-content:flex-end; gap:24px; font-size:14px; color:var(--text-muted); margin-bottom:18px;">
+      <span style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; font-weight:600; color:var(--text-muted);">Health</span>
+      <span style="display:inline-flex; align-items:center; gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#5C7A52;"></span>On track</span>
+      <span style="display:inline-flex; align-items:center; gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#B8862F;"></span>At risk</span>
+      <span style="display:inline-flex; align-items:center; gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#A33B36;"></span>Critical</span>
+    </div>
+
+    <!-- Department rows — one line each -->
+    <div style="display:flex; flex-direction:column; gap:14px;">
+
+      <!-- SALES -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Sales</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Growth</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:0;">
+          <div style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Ob MTD</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">$246.9K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Sales MTD · 18 executed agreements</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">PWS</div></div>
+        </div>
+      </div>
+
+      <!-- ONBOARDING -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Onboarding</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Growth</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:0;">
+          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">$288.9K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Live MTD · Studio $29.5K + Vini $99.0K + Partner $160.3K</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">$673.0K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Projected New Live · Live $288.9K + Confirmed $384.1K</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">$1.27M</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">ARR in Ob · Studio $0.25M + Vini $1.02M</div></div>
+        </div>
+      </div>
+
+      <!-- CS -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Customer Success</div>
+          <div style="display:flex; align-items:center; gap:7px; font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#B8862F;"></span>Growth</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:0;">
+          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">28</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Churned Logos</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:#A33B36; line-height:1;">$254.7K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Churned Revenue · incl. Partner $1.9K</div></div>
+          <div style="flex:1;"></div>
+        </div>
+      </div>
+
+      <!-- SUPPORT -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Support</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Operations</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:0;">
+          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">52</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Vini</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">68</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Studio</div></div>
+          <div style="flex:1;"></div>
+        </div>
+      </div>
+
+      <!-- DELIVERY -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Delivery</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Operations</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:0;">
+          <div style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · Image</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · Video</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · 360</div></div>
+        </div>
+      </div>
+
+      <!-- STUDIO PRODUCT -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Studio Product</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Product · Rooftops</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:26px;">
+          <div style="flex:1; max-width:420px;">
+            <div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--border-subtle);"></div>
+            <div style="display:flex; gap:20px; margin-top:12px; font-size:15px; font-weight:600;">
+              <span style="color:#5C7A52;">— Green</span>
+              <span style="color:#B8862F;">— Amber</span>
+              <span style="color:#A33B36;">— Red</span>
+            </div>
+          </div>
+          <div style="border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Total Rooftops</div></div>
+        </div>
+      </div>
+
+      <!-- SALES PRODUCT -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Sales Product</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Vini · Agents · ARR</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:26px;">
+          <div style="flex:1; max-width:420px;">
+            <div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--border-subtle);"></div>
+            <div style="display:flex; gap:20px; margin-top:12px; font-size:15px; font-weight:600;">
+              <span style="color:#5C7A52;">— Green</span>
+              <span style="color:#B8862F;">— Amber</span>
+              <span style="color:#A33B36;">— Red</span>
+            </div>
+          </div>
+          <div style="border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Agent ARR</div></div>
+        </div>
+      </div>
+
+      <!-- SERVICE PRODUCT -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Service Product</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Vini · Agents · ARR</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:26px;">
+          <div style="flex:1; max-width:420px;">
+            <div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--border-subtle);"></div>
+            <div style="display:flex; gap:20px; margin-top:12px; font-size:15px; font-weight:600;">
+              <span style="color:#5C7A52;">— Green</span>
+              <span style="color:#B8862F;">— Amber</span>
+              <span style="color:#A33B36;">— Red</span>
+            </div>
+          </div>
+          <div style="border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Agent ARR</div></div>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div style="background:#fff; border-radius:14px; padding:22px 30px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+        <div style="width:230px; flex:none;">
+          <div style="font-size:16px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Finance</div>
+          <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Finance</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:0;">
+          <div style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">GM · Tech (Studio)</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">GM · Tech (Vini)</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Blended GM · Tech</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:24px; font-size:13px; color:var(--text-muted); text-align:center; letter-spacing:var(--tracking-wide);">
+      CS churn is live from the CS Churn Tracker · other metrics populate as sources are wired in. Spyne — AI-native automotive retail.
+    </div>
+
+  </main>
+</div>
+</div>
+
+<script>
+  function tick(){
+    var d = new Date();
+    document.getElementById('syncedAt').textContent = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    document.getElementById('reportMonth').textContent = d.toLocaleDateString('en-US', { month:'long', year:'numeric' });
+    document.getElementById('asOf').textContent = d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+  tick();
+  setInterval(tick, 30000);
+</script>
+
+</body>
+</html>
