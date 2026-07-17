@@ -83,8 +83,8 @@
       <div style="position:relative; display:grid; grid-template-columns:repeat(4, 1fr); gap:40px;">
         <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
           <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">LARR</div>
-          <div style="font-family:var(--font-display); font-size:66px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:12px 0 10px;">—</div>
-          <div style="font-size:15px; color:var(--taupe-400);">Live ARR</div>
+          <div style="font-family:var(--font-display); font-size:66px; font-weight:500; color:var(--ivory-50); line-height:1; margin:12px 0 10px;" id="m-larr">$8.28M</div>
+          <div style="font-size:15px; color:var(--taupe-400);" id="m-larr-sub">Live ARR · Base $8.19M − Churn + New Live</div>
         </div>
         <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
           <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">CARR</div>
@@ -304,6 +304,10 @@
 
   fetch('/api/metrics').then(function(r){ return r.json(); }).then(function(m){
     if (!m || m.error) return;
+    if (m.larr) {
+      put('m-larr', fm(m.larr.total));
+      put('m-larr-sub', 'Live ARR \u00b7 Base ' + fm(m.larr.base) + ' \u2212 Churn ' + fk(m.larr.churn) + ' + New Live ' + fk(m.larr.newLive));
+    }
     put('m-newsales', fbig(m.newSales.arr));
     put('m-newsales-sub', 'New Sales MTD \u00b7 ' + m.newSales.agreements + ' executed agreements');
     put('m-newlive', fbig(m.newLive.total));

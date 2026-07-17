@@ -38,6 +38,10 @@
  *    is_pending == true, split by "Product (Studio/Vini)" (Studio* vs *Vini*).
  */
 
+// Last month-end ARR book — rolled forward manually each month (same
+// convention as the CSM dashboard's EM_LARR_BASE).
+const LARR_BASE = 8187394;
+
 const OB_SHEET = '1ioRrooOvDSBxc7gjC2XUGjqHH_YBze_2HryOF8JWqL0';
 const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
 const PARTNER_SHEET = '1kvvDbnpUAodPnmnLEVAWejLAzTwEflkzLSkXiAeOkB4';
@@ -271,9 +275,17 @@ module.exports = async function handler(req, res) {
     const cApac = confirmedARR(apacRows, TABS.apacEmea, ym);
     const confirmedTotal = cVini.arr + cAmer.arr + cApac.arr;
 
+    const totalChurnARR = churn.arr + partnerChurnARR;
+
     const payload = {
       month: ym,
       generatedAt: now.toISOString(),
+      larr: {
+        base: LARR_BASE,
+        churn: totalChurnARR,
+        newLive: newLiveTotal,
+        total: LARR_BASE - totalChurnARR + newLiveTotal,
+      },
       csChurn: {
         logos: churn.logos,
         arr: churn.arr,
