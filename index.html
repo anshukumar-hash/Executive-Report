@@ -133,7 +133,7 @@
         </div>
         <div style="flex:1; display:flex; align-items:center; gap:0;">
           <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-logos">28</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Churned Logos</div></div>
-          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:#A33B36; line-height:1;" id="m-churn">$254.7K</div><div id="m-churn-sub" style="font-size:13px; color:var(--text-muted); margin-top:8px;">Churned Revenue · incl. Partner $1.9K</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:#A33B36; line-height:1;" id="m-churn">$254.7K</div><div id="m-churn-sub" style="font-size:13px; color:var(--text-muted); margin-top:8px;">Churned Revenue</div></div>
           <div style="flex:1;"></div>
         </div>
       </div>
@@ -175,14 +175,17 @@
             <div style="flex:1; background:#EDF1EA; border-radius:10px; padding:11px 16px;">
               <div style="font-family:var(--font-display); font-size:34px; color:#5C7A52; line-height:1;" id="h-s-g">859</div>
               <div style="font-size:13px; color:var(--text-muted); margin-top:7px;">Green</div>
+              <div style="font-size:14px; font-weight:700; color:var(--ink-900); margin-top:3px;" id="h-s-g-arr">$314.3K</div>
             </div>
             <div style="flex:1; background:#F7F0E1; border-radius:10px; padding:11px 16px;">
               <div style="font-family:var(--font-display); font-size:34px; color:#B8862F; line-height:1;" id="h-s-a">443</div>
               <div style="font-size:13px; color:var(--text-muted); margin-top:7px;">Amber</div>
+              <div style="font-size:14px; font-weight:700; color:var(--ink-900); margin-top:3px;" id="h-s-a-arr">$161.4K</div>
             </div>
             <div style="flex:1; background:#F6E9E8; border-radius:10px; padding:11px 16px;">
               <div style="font-family:var(--font-display); font-size:34px; color:#A33B36; line-height:1;" id="h-s-r">134</div>
               <div style="font-size:13px; color:var(--text-muted); margin-top:7px;">Red</div>
+              <div style="font-size:14px; font-weight:700; color:var(--ink-900); margin-top:3px;" id="h-s-r-arr">$54.6K</div>
             </div>
           </div>
           <div style="border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="h-s-total">1,436</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Total Rooftops</div></div>
@@ -297,7 +300,6 @@
     put('m-arrob', fbig(m.arrInOb.total));
     put('m-logos', String(m.csChurn.logos));
     put('m-churn', fbig(m.csChurn.totalARR));
-    put('m-churn-sub', 'Churned Revenue \u00b7 incl. Partner ' + fk(m.csChurn.partnerChurnARR));
     if (m.pendingTickets) {
       put('m-pt-vini', String(m.pendingTickets.vini));
       put('m-pt-studio', String(m.pendingTickets.studio));
@@ -310,6 +312,9 @@
     put('h-s-a', String(h.studio.amber));
     put('h-s-r', String(h.studio.red));
     put('h-s-total', h.studio.rooftops.toLocaleString('en-US'));
+    put('h-s-g-arr', fbig(h.studio.arr.green));
+    put('h-s-a-arr', fbig(h.studio.arr.amber));
+    put('h-s-r-arr', fbig(h.studio.arr.red));
     function fill(p, b){
       put(p+'-g', String(b.green));   put(p+'-g-arr', fbig(b.arr.green));
       put(p+'-a', String(b.amber));   put(p+'-a-arr', fbig(b.arr.amber));
