@@ -356,10 +356,12 @@ async function metabaseImagePendency() {
   const key = process.env.METABASE_API_KEY;
   const dbId = Number(process.env.METABASE_DATABASE_ID || 363);
   if (!base || !key || !dbId) return null;
+  // NOTE: .trim() is required — a leading newline makes Metabase's ClickHouse
+  // driver fail with "Select statement did not produce a ResultSet".
   const res = await fetch(`${base}/api/dataset`, {
     method: 'POST',
     headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ database: dbId, type: 'native', native: { query: IMAGE_PENDENCY_SQL } }),
+    body: JSON.stringify({ database: dbId, type: 'native', native: { query: IMAGE_PENDENCY_SQL.trim() } }),
   });
   if (!res.ok) throw new Error(`metabase dataset -> HTTP ${res.status}`);
   const out = await res.json();
