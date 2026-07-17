@@ -51,7 +51,7 @@ const PWS_BASE = 3806316;
 
 // CARR base — rolled forward manually.
 // CARR = base + New Sales MTD − CS churn − Onboarding churn.
-const CARR_BASE = 6001531;
+const CARR_BASE = 6001531 + 8187394; // 14,188,925
 
 const OB_SHEET = '1ioRrooOvDSBxc7gjC2XUGjqHH_YBze_2HryOF8JWqL0';
 const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
