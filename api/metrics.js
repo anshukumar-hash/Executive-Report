@@ -42,6 +42,9 @@
 // convention as the CSM dashboard's EM_LARR_BASE).
 const LARR_BASE = 8187394;
 
+// PWS bucket base — rolled forward manually. PWS = base − New Ob MTD.
+const PWS_BASE = 3806316;
+
 const OB_SHEET = '1ioRrooOvDSBxc7gjC2XUGjqHH_YBze_2HryOF8JWqL0';
 const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
 const PARTNER_SHEET = '1kvvDbnpUAodPnmnLEVAWejLAzTwEflkzLSkXiAeOkB4';
@@ -215,6 +218,24 @@ function newSales(rows, mmmYY) {
   return { arr, agreements };
 }
 
+// New Ob MTD: OB tab rows whose "In-Ob from" is "From PWS" or "From New Sales"
+// (header row is CSV row 2; data from row 3). Sum ARR (col 2).
+function newObMtd(rows) {
+  const header = rows[2] || [];
+  const idx = header.findIndex(h => h.trim().toLowerCase() === 'in-ob from');
+  if (idx === -1) return { arr: 0, rooftops: 0 };
+  let arr = 0, rooftops = 0;
+  for (const r of rows.slice(3)) {
+    if (r.length <= idx) continue;
+    const v = (r[idx] || '').trim();
+    if (v === 'From PWS' || v === 'From New Sales') {
+      arr += money(r[2]);
+      rooftops++;
+    }
+  }
+  return { arr, rooftops };
+}
+
 async function pendingTickets() {
   const res = await fetch(TICKETS_URL);
   if (!res.ok) throw new Error(`tickets -> HTTP ${res.status}`);
@@ -277,6 +298,11 @@ module.exports = async function handler(req, res) {
 
     const totalChurnARR = churn.arr + partnerChurnARR;
 
+    // New Ob MTD (Vini + Studio AMER) and derived PWS
+    const noVini = newObMtd(viniRows);
+    const noAmer = newObMtd(amerRows);
+    const newObTotal = noVini.arr + noAmer.arr;
+
     const payload = {
       month: ym,
       generatedAt: now.toISOString(),
@@ -312,6 +338,17 @@ module.exports = async function handler(req, res) {
         rooftops: obVini.rooftops + obAmer.rooftops + obApac.rooftops,
       },
       newSales: newSales(salesRows, mmmYY),
+      newOb: {
+        vini: noVini.arr,
+        studio: noAmer.arr,
+        total: newObTotal,
+        rooftops: noVini.rooftops + noAmer.rooftops,
+      },
+      pws: {
+        base: PWS_BASE,
+        newOb: newObTotal,
+        total: PWS_BASE - newObTotal,
+      },
       pendingTickets: tickets, // null if the ticket API was unreachable
     };
 

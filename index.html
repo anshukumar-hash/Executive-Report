@@ -106,9 +106,9 @@
           <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Growth</div>
         </div>
         <div style="flex:1; display:flex; align-items:center; gap:0;">
-          <div style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Ob MTD</div></div>
+          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-newob">$212.9K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Ob MTD</div></div>
           <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-newsales">$246.9K</div><div id="m-newsales-sub" style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Sales MTD</div></div>
-          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">PWS</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pws">$3.59M</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">PWS</div></div>
         </div>
       </div>
 
@@ -295,6 +295,8 @@
       put('m-larr', fm(m.larr.total));
     }
     put('m-newsales', fbig(m.newSales.arr));
+    if (m.newOb) put('m-newob', fbig(m.newOb.total));
+    if (m.pws) put('m-pws', fbig(m.pws.total));
     put('m-newlive', fbig(m.newLive.total));
     put('m-projlive', fbig(m.projectedNewLive.total));
     put('m-arrob', fbig(m.arrInOb.total));
