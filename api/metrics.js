@@ -36,23 +36,31 @@
  *
  * 7. PENDING TICKETS — dilipticket.vercel.app/api/tickets (Freshdesk proxy).
  *    is_pending == true, split by "Product (Studio/Vini)" (Studio* vs *Vini*).
+ *
+ * 8. CARR — base + New Sales MTD − CS churn − Onboarding churn.
+ *    Onboarding churn: across the 3 OB tabs, rows where Stage is "OB Drop" or
+ *    "Sales Drop" and "Churn / Drop-off Date" is in the current month; sum ARR.
  */
 
 // Last month-end ARR book — rolled forward manually each month (same
 // convention as the CSM dashboard's EM_LARR_BASE).
 const LARR_BASE = 8187394;
 
-// PWS bucket base — rolled forward manually. PWS = base − New Ob MTD.
+// PWS bucket base — rolled forward manually. PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
+
+// CARR base — rolled forward manually.
+// CARR = base + New Sales MTD − CS churn − Onboarding churn.
+const CARR_BASE = 6001531;
 
 const OB_SHEET = '1ioRrooOvDSBxc7gjC2XUGjqHH_YBze_2HryOF8JWqL0';
 const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
 const PARTNER_SHEET = '1kvvDbnpUAodPnmnLEVAWejLAzTwEflkzLSkXiAeOkB4';
 
 const TABS = {
-  vini:      { gid: '2053683245', goCol: 16, entCol: 7, pldCol: 15, confCol: 13, obStage: 'ob initiated' },
-  amer:      { gid: '1134407178', goCol: 15, entCol: 6, pldCol: 13, confCol: 12, obStage: 'ob initiated' },
-  apacEmea:  { gid: '764039413',  goCol: 21, entCol: 6, pldCol: 13, confCol: 12, obStage: 'in implementation' },
+  vini:      { gid: '2053683245', goCol: 16, entCol: 7, pldCol: 15, confCol: 13, churnCol: 17, obStage: 'ob initiated' },
+  amer:      { gid: '1134407178', goCol: 15, entCol: 6, pldCol: 13, confCol: 12, churnCol: 16, obStage: 'ob initiated' },
+  apacEmea:  { gid: '764039413',  goCol: 21, entCol: 6, pldCol: 13, confCol: 12, churnCol: 23, obStage: 'in implementation' },
 };
 
 const CHURN_GID = '1421999984';
@@ -174,6 +182,21 @@ function arrInOb(rows, tab) {
   return { arr, rooftops };
 }
 
+// Onboarding churn: OB tab rows where Stage is "OB Drop" or "Sales Drop" and the
+// "Churn / Drop-off Date" (per-tab churnCol) falls in the current month. Sum ARR (col 2).
+function obChurn(rows, tab, ym) {
+  let arr = 0, rooftops = 0;
+  for (const r of rows.slice(3)) {
+    if (r.length <= Math.max(tab.churnCol, 4)) continue;
+    const stage = (r[4] || '').trim().toLowerCase();
+    if (stage !== 'ob drop' && stage !== 'sales drop') continue;
+    if (toYM(r[tab.churnCol]) !== ym) continue;
+    arr += money(r[2]);
+    rooftops++;
+  }
+  return { arr, rooftops };
+}
+
 function confirmedARR(rows, tab, ym) {
   let arr = 0, rooftops = 0;
   for (const r of rows.slice(3)) {
@@ -251,6 +274,34 @@ async function pendingTickets() {
   return { studio, vini, unclassified };
 }
 
+// ─── Metabase — Delivery · Image pendency ─────────────────────────────────────
+// Reads a saved Metabase card (a scalar/count question) and returns its number.
+// Configured via env: METABASE_BASE_URL, METABASE_API_KEY, METABASE_CARD_ID
+// (set in .env.local locally, and in Vercel → Settings → Environment Variables).
+// Returns null if unconfigured or the request fails — dashboard keeps "—".
+async function metabaseImagePendency() {
+  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
+  const key = process.env.METABASE_API_KEY;
+  const card = process.env.METABASE_CARD_ID;
+  if (!base || !key || !card) return null;
+  const res = await fetch(`${base}/api/card/${card}/query/json`, {
+    method: 'POST',
+    headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  if (!res.ok) throw new Error(`metabase card ${card} -> HTTP ${res.status}`);
+  const rows = await res.json();
+  if (!Array.isArray(rows) || !rows.length) return null;
+  // Scalar card: take a column mentioning "image", else the first numeric value.
+  const row = rows[0];
+  const imgKey = Object.keys(row).find(k => /image/i.test(k));
+  const raw = imgKey != null
+    ? row[imgKey]
+    : Object.values(row).find(v => v != null && v !== '' && !isNaN(Number(v)));
+  const n = Number(raw);
+  return isNaN(n) ? null : n;
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -261,7 +312,7 @@ module.exports = async function handler(req, res) {
   const mmmYY = `${mmm[0].toUpperCase()}${mmm.slice(1)}'${String(now.getUTCFullYear()).slice(2)}`;
 
   try {
-    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows, tickets] =
+    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows, tickets, imagePendency] =
       await Promise.all([
         fetchCSV(CHURN_SHEET, CHURN_GID),
         fetchCSV(OB_SHEET, TABS.vini.gid),
@@ -270,6 +321,7 @@ module.exports = async function handler(req, res) {
         fetchCSV(PARTNER_SHEET, PARTNER_GID),
         fetchCSV(OB_SHEET, NEWSALES_GID),
         pendingTickets().catch(() => null),
+        metabaseImagePendency().catch(() => null),
       ]);
 
     // CS churn + partner churn (annualized)
@@ -298,10 +350,23 @@ module.exports = async function handler(req, res) {
 
     const totalChurnARR = churn.arr + partnerChurnARR;
 
+    // New Sales MTD (executed agreements this month)
+    const newSalesMtd = newSales(salesRows, mmmYY);
+
     // New Ob MTD (Vini + Studio AMER) and derived PWS
     const noVini = newObMtd(viniRows);
     const noAmer = newObMtd(amerRows);
     const newObTotal = noVini.arr + noAmer.arr;
+
+    // Onboarding churn (OB Drop + Sales Drop, drop-date in current month)
+    const obcVini = obChurn(viniRows, TABS.vini, ym);
+    const obcAmer = obChurn(amerRows, TABS.amer, ym);
+    const obcApac = obChurn(apacRows, TABS.apacEmea, ym);
+    const obChurnTotal = obcVini.arr + obcAmer.arr + obcApac.arr;
+
+    // CARR = base + New Sales MTD − CS churn − Onboarding churn.
+    // CS churn here mirrors the CS row's "Churned Revenue" (CS Tracker + partner).
+    const carrTotal = CARR_BASE + newSalesMtd.arr - totalChurnARR - obChurnTotal;
 
     const payload = {
       month: ym,
@@ -311,6 +376,14 @@ module.exports = async function handler(req, res) {
         churn: totalChurnARR,
         newLive: newLiveTotal,
         total: LARR_BASE - totalChurnARR + newLiveTotal,
+      },
+      carr: {
+        base: CARR_BASE,
+        newSales: newSalesMtd.arr,
+        csChurn: totalChurnARR,
+        obChurn: obChurnTotal,
+        obChurnRooftops: obcVini.rooftops + obcAmer.rooftops + obcApac.rooftops,
+        total: carrTotal,
       },
       csChurn: {
         logos: churn.logos,
@@ -337,7 +410,7 @@ module.exports = async function handler(req, res) {
         total: obVini.arr + obAmer.arr + obApac.arr,
         rooftops: obVini.rooftops + obAmer.rooftops + obApac.rooftops,
       },
-      newSales: newSales(salesRows, mmmYY),
+      newSales: newSalesMtd,
       newOb: {
         vini: noVini.arr,
         studio: noAmer.arr,
@@ -346,10 +419,14 @@ module.exports = async function handler(req, res) {
       },
       pws: {
         base: PWS_BASE,
+        newSales: newSalesMtd.arr,
         newOb: newObTotal,
-        total: PWS_BASE - newObTotal,
+        total: PWS_BASE + newSalesMtd.arr - newObTotal,
       },
       pendingTickets: tickets, // null if the ticket API was unreachable
+      delivery: {
+        imagePendency, // null if Metabase unreachable/unconfigured
+      },
     };
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
