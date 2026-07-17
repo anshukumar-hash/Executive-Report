@@ -315,7 +315,6 @@
     put('h-s-g', String(h.studio.green));
     put('h-s-a', String(h.studio.amber));
     put('h-s-r', String(h.studio.red));
-    put('h-s-total', h.studio.rooftops.toLocaleString('en-US'));
     if (h.company) { if (h.company.grr != null) put('m-grr', h.company.grr.toFixed(1)+'%'); if (h.company.nrr != null) put('m-nrr', h.company.nrr.toFixed(1)+'%'); }
     put('h-s-g-arr', fbig(h.studio.arr.green));
     put('h-s-a-arr', fbig(h.studio.arr.amber));
@@ -324,8 +323,6 @@
       put(p+'-g', String(b.green));   put(p+'-g-arr', fbig(b.arr.green));
       put(p+'-a', String(b.amber));   put(p+'-a-arr', fbig(b.arr.amber));
       put(p+'-r', String(b.red));     put(p+'-r-arr', fbig(b.arr.red));
-      put(p+'-total', fbig(b.totalArr));
-      put(p+'-total-sub', 'Agent ARR \u00b7 ' + b.agents + ' agents');
     }
     fill('h-sl', h.viniSales);
     fill('h-sv', h.viniService);
