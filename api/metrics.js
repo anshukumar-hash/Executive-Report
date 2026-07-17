@@ -260,7 +260,16 @@ function newObMtd(rows) {
 }
 
 async function pendingTickets() {
-  const res = await fetch(TICKETS_URL);
+  // The ticket proxy returns ~3k rows and is the slowest source; cap it so it
+  // can't drag the whole /api/metrics response (CARR etc. don't depend on it).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  let res;
+  try {
+    res = await fetch(TICKETS_URL, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error(`tickets -> HTTP ${res.status}`);
   const all = await res.json();
   let studio = 0, vini = 0, unclassified = 0;
