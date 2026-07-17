@@ -293,10 +293,33 @@ module.exports = async function handler(req, res) {
       else b.na++;
     }
 
+    // ── Company GRR & NRR (ported from the CSM dashboard, overall scope) ──
+    // GRR (Projected Yearly, compounded): (1 − churn/base)^12, base fixed at
+    //   7,732,095 for the unfiltered overall headline.
+    // NRR = (base + expansion − revenue loss) / base, base 8,187,394.
+    // Inputs come from the same embedded snapshot (D.expansion, D.revenue_loss).
+    const GRR_BASE = 7732095;
+    const NRR_BASE = 8187394;
+    const EXP = Object.assign({ arr: 0 }, D.expansion || {});
+    const RL = Object.assign(
+      { d2dStudio: 0, d2dVini: 0, partnerStudio: 0, partnerVini: 0 },
+      D.revenue_loss || {}
+    );
+    const loss = (Number(RL.d2dStudio) || 0) + (Number(RL.d2dVini) || 0)
+               + (Number(RL.partnerStudio) || 0) + (Number(RL.partnerVini) || 0);
+    const exp = Number(EXP.arr) || 0;
+    const grrPct = GRR_BASE > 0 ? Math.max(0, Math.pow(1 - loss / GRR_BASE, 12) * 100) : null;
+    const nrrPct = NRR_BASE > 0 ? (NRR_BASE + exp - loss) / NRR_BASE * 100 : null;
+
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=120');
     return res.status(200).json({
       generatedAt: new Date().toISOString(),
       studio, viniSales: sales, viniService: service, viniOther: other,
+      company: {
+        grr: grrPct,           // Projected GRR (Yearly), %
+        nrr: nrrPct,           // NRR, %
+        grrBase: GRR_BASE, nrrBase: NRR_BASE, expansion: exp, revenueLoss: loss,
+      },
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

@@ -87,11 +87,11 @@
                   </div>
         <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
           <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">GRR</div>
-          <div style="font-family:var(--font-display); font-size:52px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:8px 0 0;">—</div>
+          <div style="font-family:var(--font-display); font-size:52px; font-weight:500; color:var(--ivory-50); line-height:1; margin:8px 0 0;" id="m-grr">63.5%</div>
                   </div>
         <div style="border-left:1px solid rgba(214,189,134,0.28); padding-left:26px;">
           <div style="font-size:14px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--taupe-400); font-weight:600;">NRR</div>
-          <div style="font-family:var(--font-display); font-size:52px; font-weight:500; color:rgba(251,248,243,0.28); line-height:1; margin:8px 0 0;">—</div>
+          <div style="font-family:var(--font-display); font-size:52px; font-weight:500; color:var(--ivory-50); line-height:1; margin:8px 0 0;" id="m-nrr">100.0%</div>
                   </div>
       </div>
     </section>
@@ -106,8 +106,8 @@
           <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Growth</div>
         </div>
         <div style="flex:1; display:flex; align-items:center; gap:0;">
-          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-newob">$212.9K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Ob MTD</div></div>
-          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-newsales">$246.9K</div><div id="m-newsales-sub" style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Sales MTD</div></div>
+          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-newsales">$246.9K</div><div id="m-newsales-sub" style="font-size:13px; color:var(--text-muted); margin-top:8px;">New Sales MTD</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-newob">$212.9K</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Sent to OB</div></div>
           <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pws">$3.59M</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">PWS</div></div>
         </div>
       </div>
@@ -319,6 +319,7 @@
     put('h-s-a', String(h.studio.amber));
     put('h-s-r', String(h.studio.red));
     put('h-s-total', h.studio.rooftops.toLocaleString('en-US'));
+    if (h.company) { if (h.company.grr != null) put('m-grr', h.company.grr.toFixed(1)+'%'); if (h.company.nrr != null) put('m-nrr', h.company.nrr.toFixed(1)+'%'); }
     put('h-s-g-arr', fbig(h.studio.arr.green));
     put('h-s-a-arr', fbig(h.studio.arr.amber));
     put('h-s-r-arr', fbig(h.studio.arr.red));
