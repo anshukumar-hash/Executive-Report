@@ -162,8 +162,8 @@
           <div style="font-size:12px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Operations</div>
         </div>
         <div class="metrics" style="flex:1; display:flex; align-items:center; gap:0;">
-          <div style="flex:1;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-vini">52</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Vini</div></div>
-          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-studio">68</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Studio</div></div>
+          <div style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-vini">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Vini</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-studio">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Studio</div></div>
           <div style="flex:1;"></div>
         </div>
       </div>
@@ -176,8 +176,8 @@
         </div>
         <div class="metrics" style="flex:1; display:flex; align-items:center; gap:0;">
           <div style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pd-image">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · Image</div></div>
-          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · Video</div></div>
-          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · 360</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pd-video">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · Video</div></div>
+          <div style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pd-360">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pendency · 360</div></div>
         </div>
       </div>
 
@@ -317,15 +317,34 @@
     put('m-arrob', fbig(m.arrInOb.total));
     put('m-logos', String(m.csChurn.logos));
     put('m-churn', fbig(m.csChurn.totalARR));
-    if (m.pendingTickets) {
-      put('m-pt-vini', String(m.pendingTickets.vini));
-      put('m-pt-studio', String(m.pendingTickets.studio));
-    }
-    if (m.delivery && m.delivery.imagePendency != null) {
-      var pdImg = document.getElementById('m-pd-image');
-      if (pdImg) { pdImg.textContent = Number(m.delivery.imagePendency).toLocaleString('en-US'); pdImg.classList.remove('blank'); }
-    }
   }).catch(function(){ /* keep baked values on failure */ });
+
+  // Sets a tile to a live number and clears its blank "—" placeholder; leaves
+  // the "—" if the value is missing (never shows a stale hardcoded number).
+  function putNum(id, v){
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (v == null || isNaN(Number(v))) return;
+    el.textContent = Number(v).toLocaleString('en-US');
+    el.classList.remove('blank');
+  }
+
+  // Delivery pendency — separate endpoint (heavy ClickHouse queries) so it
+  // doesn't block the core dashboard; fills in when ready.
+  fetch('/api/delivery').then(function(r){ return r.json(); }).then(function(d){
+    if (!d || d.error) return;
+    putNum('m-pd-image', d.imagePendency);
+    putNum('m-pd-video', d.videoPendency);
+    putNum('m-pd-360', d.threeSixtyPendency);
+  }).catch(function(){ /* keep "—" on failure */ });
+
+  // Pending tickets — separate endpoint (slow ticket API) so it doesn't block
+  // the core dashboard; fills in when ready.
+  fetch('/api/support').then(function(r){ return r.json(); }).then(function(s){
+    if (!s || s.error || !s.pendingTickets) return;
+    putNum('m-pt-vini', s.pendingTickets.vini);
+    putNum('m-pt-studio', s.pendingTickets.studio);
+  }).catch(function(){ /* keep "—" on failure */ });
 
   fetch('/api/health').then(function(r){ return r.json(); }).then(function(h){
     if (!h || h.error) return;

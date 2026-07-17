@@ -66,7 +66,6 @@ const TABS = {
 const CHURN_GID = '1421999984';
 const PARTNER_GID = '135115178';
 const NEWSALES_GID = '1527522866';
-const TICKETS_URL = 'https://dilipticket.vercel.app/api/tickets';
 
 const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 
@@ -259,118 +258,6 @@ function newObMtd(rows) {
   return { arr, rooftops };
 }
 
-async function pendingTickets() {
-  // The ticket proxy returns ~3k rows and is the slowest source; cap it so it
-  // can't drag the whole /api/metrics response (CARR etc. don't depend on it).
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
-  let res;
-  try {
-    res = await fetch(TICKETS_URL, { signal: ctrl.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-  if (!res.ok) throw new Error(`tickets -> HTTP ${res.status}`);
-  const all = await res.json();
-  let studio = 0, vini = 0, unclassified = 0;
-  for (const t of all) {
-    if (!t.is_pending) continue;
-    const p = (t['Product (Studio/Vini)'] || '').toLowerCase();
-    if (p.includes('studio')) studio++;
-    else if (p.includes('vini')) vini++;
-    else unclassified++;
-  }
-  return { studio, vini, unclassified };
-}
-
-// ─── Metabase — Delivery · Image pendency ─────────────────────────────────────
-// Runs the Image-Pendency SQL directly against Metabase's dataset API, so it
-// needs no saved card and doesn't depend on card-collection permissions.
-// Config via env: METABASE_BASE_URL, METABASE_API_KEY, METABASE_DATABASE_ID
-// (set in .env.local locally, and in Vercel → Settings → Environment Variables).
-// METABASE_DATABASE_ID defaults to 363 (Prod ClickHouse Cloud) — the source the
-// metric is validated against. Returns null if unconfigured or the request
-// fails — dashboard keeps "—".
-//
-// Count of QC-on, non-360 SKUs (Live/Onboarding Automobile enterprises, test &
-// excluded IDs filtered out) created in the last 30 days, pending QC > 6 hours.
-const IMAGE_PENDENCY_SQL = `
-SELECT
-    COUNT(sku_id) AS total_pendency_count
-FROM
-(
-    SELECT
-        sk.sku_id,
-        sk.crm_status,
-        sk.is_360,
-        CASE
-            WHEN ed.quality_check = 1
-             AND ed.enterprise_qc_priority = 0
-            THEN 1
-            ELSE 0
-        END AS is_qc_on,
-        dateDiff('hour', sk.created_on, now()) AS pending_duration_hours
-    FROM eventila.ai_sku sk
-    LEFT JOIN eventila.enterprise_team_details etd
-        ON sk.team_id = etd.team_id
-    LEFT JOIN eventila.enterprise_details ed
-        ON etd.enterprise_id = ed.enterprise_id
-    LEFT JOIN PartnerSystem.outputworkflows o
-        ON o.teamId = etd.team_id AND o.enterpriseId = etd.enterprise_id AND o.isActive = 1
-    LEFT JOIN PartnerSystem.inputworkflows i
-        ON i.teamId = etd.team_id AND i.enterpriseId = etd.enterprise_id AND i.isActive = 1 AND i.createDraft = 'true'
-    LEFT JOIN inventory.dealerVinMapping dvm
-        ON dvm.teamId = etd.team_id AND dvm.enterpriseId = etd.enterprise_id AND dvm.dealerVinId = sk.dealerVinId
-    LEFT JOIN media_management.medias m
-        ON m.dealerVinId = sk.dealerVinId AND m.mediaId = sk.mediaId
-    LEFT JOIN PartnerSystem.rooftopinventories r
-        ON r.dealerVinId = m.dealerVinId
-    WHERE sk.created_on >= today() - INTERVAL 30 DAY
-      AND sk.is_hidden = 0
-      AND ed.is_test_account = 0
-      AND etd.is_test_account = 0
-      AND ed.is_active = 1
-      AND ed.stage IN ('Live', 'Onboarding')
-      AND ed.category = 'Automobile'
-      AND sk.crm_status != 'qc_done'
-      AND ed.enterprise_id NOT IN
-      (
-        '0b4bc56b1','00d2aafe9','197d146c4','18d200080','1O103VCUW',
-        '28733e36c','2LA80M7WO','8e2f0d75a','293e1a285','TaD1VC1Ko',
-        '3471c086e','39b5a5268','af5e033aa','c95e31793','caae51a38',
-        'L3X0W7YW6','74e1ee1ab','4J8975Z1G','4bc9d1ce6','7KIAEAQQA'
-      )
-    LIMIT 1 BY sk.sku_id
-    SETTINGS
-        join_algorithm = 'grace_hash',
-        max_bytes_in_join = 10737418240,
-        max_bytes_before_external_sort = 10737418240,
-        max_threads = 4
-)
-WHERE is_qc_on = 1
-  AND toString(is_360) IN ('0', 'false', 'FALSE')
-  AND pending_duration_hours > 6`;
-
-async function metabaseImagePendency() {
-  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
-  const key = process.env.METABASE_API_KEY;
-  const dbId = Number(process.env.METABASE_DATABASE_ID || 363);
-  if (!base || !key || !dbId) return null;
-  // NOTE: .trim() is required — a leading newline makes Metabase's ClickHouse
-  // driver fail with "Select statement did not produce a ResultSet".
-  const res = await fetch(`${base}/api/dataset`, {
-    method: 'POST',
-    headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ database: dbId, type: 'native', native: { query: IMAGE_PENDENCY_SQL.trim() } }),
-  });
-  if (!res.ok) throw new Error(`metabase dataset -> HTTP ${res.status}`);
-  const out = await res.json();
-  const rows = out && out.data && out.data.rows;
-  if (!Array.isArray(rows) || !rows.length || !Array.isArray(rows[0])) return null;
-  const n = Number(rows[0][0]);
-  return isNaN(n) ? null : n;
-}
-
 // ─── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -381,7 +268,7 @@ module.exports = async function handler(req, res) {
   const mmmYY = `${mmm[0].toUpperCase()}${mmm.slice(1)}'${String(now.getUTCFullYear()).slice(2)}`;
 
   try {
-    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows, tickets, imagePendency] =
+    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows] =
       await Promise.all([
         fetchCSV(CHURN_SHEET, CHURN_GID),
         fetchCSV(OB_SHEET, TABS.vini.gid),
@@ -389,8 +276,6 @@ module.exports = async function handler(req, res) {
         fetchCSV(OB_SHEET, TABS.apacEmea.gid),
         fetchCSV(PARTNER_SHEET, PARTNER_GID),
         fetchCSV(OB_SHEET, NEWSALES_GID),
-        pendingTickets().catch(() => null),
-        metabaseImagePendency().catch(() => null),
       ]);
 
     // CS churn + partner churn (annualized)
@@ -492,10 +377,8 @@ module.exports = async function handler(req, res) {
         newOb: newObTotal,
         total: PWS_BASE + newSalesMtd.arr - newObTotal,
       },
-      pendingTickets: tickets, // null if the ticket API was unreachable
-      delivery: {
-        imagePendency, // null if Metabase unreachable/unconfigured
-      },
+      // Pending tickets moved to /api/support, delivery pendency to /api/delivery
+      // so their slow sources don't block this core dashboard load.
     };
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
