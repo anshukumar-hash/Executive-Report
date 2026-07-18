@@ -303,22 +303,6 @@
   function fbig(v){ return v >= 1e6 ? fm(v) : fk(v); }
   function put(id, text){ var el = document.getElementById(id); if (el && text != null) el.textContent = text; }
 
-  fetch('/api/metrics').then(function(r){ return r.json(); }).then(function(m){
-    if (!m || m.error) return;
-    if (m.larr) {
-      put('m-larr', fm(m.larr.total));
-    }
-    if (m.carr) put('m-carr', fm(m.carr.total));
-    put('m-newsales', fbig(m.newSales.arr));
-    if (m.newOb) put('m-newob', fbig(m.newOb.total));
-    if (m.pws) put('m-pws', fbig(m.pws.total));
-    put('m-newlive', fbig(m.newLive.total));
-    put('m-projlive', fbig(m.projectedNewLive.total));
-    put('m-arrob', fbig(m.arrInOb.total));
-    put('m-logos', String(m.csChurn.logos));
-    put('m-churn', fbig(m.csChurn.totalARR));
-  }).catch(function(){ /* keep baked values on failure */ });
-
   // Sets a tile to a live number and clears its blank "—" placeholder; leaves
   // the "—" if the value is missing (never shows a stale hardcoded number).
   function putNum(id, v){
@@ -329,25 +313,47 @@
     el.classList.remove('blank');
   }
 
-  // Delivery pendency — separate endpoint (heavy ClickHouse queries) so it
-  // doesn't block the core dashboard; fills in when ready.
-  fetch('/api/delivery').then(function(r){ return r.json(); }).then(function(d){
-    if (!d || d.error) return;
+  // Fetch with instant paint from the last-known good response. On refresh the
+  // slow endpoints (delivery ~8s, support ~15s) would otherwise flash "—" until
+  // they resolve; instead we render the cached values immediately, then update
+  // in place when the live response arrives. Cache holds real prior data (not
+  // hardcoded), scoped per-URL, and is only written on a successful response.
+  function cachedFetch(url, apply){
+    try { var c = localStorage.getItem('exec:' + url); if (c) { try { apply(JSON.parse(c)); } catch(e){} } } catch(e){}
+    return fetch(url).then(function(r){ return r.json(); }).then(function(d){
+      if (!d || d.error) return;
+      try { apply(d); } catch(e){}
+      try { localStorage.setItem('exec:' + url, JSON.stringify(d)); } catch(e){}
+    }).catch(function(){ /* keep cached/baked values on failure */ });
+  }
+
+  cachedFetch('/api/metrics', function(m){
+    if (m.larr) put('m-larr', fm(m.larr.total));
+    if (m.carr) put('m-carr', fm(m.carr.total));
+    if (m.newSales) put('m-newsales', fbig(m.newSales.arr));
+    if (m.newOb) put('m-newob', fbig(m.newOb.total));
+    if (m.pws) put('m-pws', fbig(m.pws.total));
+    if (m.newLive) put('m-newlive', fbig(m.newLive.total));
+    if (m.projectedNewLive) put('m-projlive', fbig(m.projectedNewLive.total));
+    if (m.arrInOb) put('m-arrob', fbig(m.arrInOb.total));
+    if (m.csChurn) { put('m-logos', String(m.csChurn.logos)); put('m-churn', fbig(m.csChurn.totalARR)); }
+  });
+
+  // Delivery pendency — separate endpoint (heavy ClickHouse queries).
+  cachedFetch('/api/delivery', function(d){
     putNum('m-pd-image', d.imagePendency);
     putNum('m-pd-video', d.videoPendency);
     putNum('m-pd-360', d.threeSixtyPendency);
-  }).catch(function(){ /* keep "—" on failure */ });
+  });
 
-  // Pending tickets — separate endpoint (slow ticket API) so it doesn't block
-  // the core dashboard; fills in when ready.
-  fetch('/api/support').then(function(r){ return r.json(); }).then(function(s){
-    if (!s || s.error || !s.pendingTickets) return;
+  // Pending tickets — separate endpoint (slow ticket API).
+  cachedFetch('/api/support', function(s){
+    if (!s.pendingTickets) return;
     putNum('m-pt-vini', s.pendingTickets.vini);
     putNum('m-pt-studio', s.pendingTickets.studio);
-  }).catch(function(){ /* keep "—" on failure */ });
+  });
 
-  fetch('/api/health').then(function(r){ return r.json(); }).then(function(h){
-    if (!h || h.error) return;
+  cachedFetch('/api/health', function(h){
     put('h-s-g', String(h.studio.green));
     put('h-s-a', String(h.studio.amber));
     put('h-s-r', String(h.studio.red));
