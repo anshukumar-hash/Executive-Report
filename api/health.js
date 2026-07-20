@@ -274,7 +274,17 @@ module.exports = async function handler(req, res) {
 
     const mkBucket = () => ({ green: 0, amber: 0, red: 0, na: 0, agents: 0, totalArr: 0,
                               arr: { green: 0, amber: 0, red: 0 } });
-    const sales = mkBucket(), service = mkBucket(), other = mkBucket();
+    // Split Vini agents into the four agent types: Sales IB/OB, Service IB/OB.
+    const salesIB = mkBucket(), salesOB = mkBucket(),
+          serviceIB = mkBucket(), serviceOB = mkBucket(), other = mkBucket();
+    const pick = agent => {
+      const a = String(agent || '').toLowerCase();
+      const inbound = a.includes('inbound');
+      const outbound = a.includes('outbound');
+      if (a.includes('sales')) return inbound ? salesIB : outbound ? salesOB : other;
+      if (a.includes('service')) return inbound ? serviceIB : outbound ? serviceOB : other;
+      return other;
+    };
     for (const a of Object.values(byKey)) {
       if (String(a.stage || '').toLowerCase() === 'churned') continue;
       const roiMtd = (a.mrr * mtdFactor) > 0 ? a.apptValue_mtd / (a.mrr * mtdFactor) : 0;
@@ -285,7 +295,7 @@ module.exports = async function handler(req, res) {
         ticket: enterpriseTicketRag(a.eid, VINI_TIX, range),
         reportSent: reportRag(a.rid),
       }, { usage: 3, payment: 3, comm: 2, ticket: 2, reportSent: 2 });
-      const b = /sales/i.test(a.agent) ? sales : /service/i.test(a.agent) ? service : other;
+      const b = pick(a.agent);
       b.agents++; b.totalArr += a.arr;
       if (g === 'Green') { b.green++; b.arr.green += a.arr; }
       else if (g === 'Amber') { b.amber++; b.arr.amber += a.arr; }
@@ -314,7 +324,8 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=120');
     return res.status(200).json({
       generatedAt: new Date().toISOString(),
-      studio, viniSales: sales, viniService: service, viniOther: other,
+      studio,
+      salesIB, salesOB, serviceIB, serviceOB, viniOther: other,
       company: {
         grr: grrPct,           // Projected GRR (Yearly), %
         nrr: nrrPct,           // NRR, %

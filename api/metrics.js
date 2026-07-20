@@ -53,6 +53,10 @@ const PWS_BASE = 3806316;
 // CARR = base + New Sales MTD − CS churn − Onboarding churn.
 const CARR_BASE = 6001531 + 8187394; // 14,188,925
 
+// Monthly New Live target — the Onboarding "gap to target" tile shows
+// (target − achieved) in red, with achieved below. Rolled forward manually.
+const NEW_LIVE_TARGET = 1800000;
+
 const OB_SHEET = '1ioRrooOvDSBxc7gjC2XUGjqHH_YBze_2HryOF8JWqL0';
 const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
 const PARTNER_SHEET = '1kvvDbnpUAodPnmnLEVAWejLAzTwEflkzLSkXiAeOkB4';
@@ -143,15 +147,20 @@ function csChurn(rows, ym) {
   const monthIdx = header.indexOf('Churn/Contraction Month');
   const arrIdx = header.indexOf('ARR');
   const leaderIdx = header.indexOf('Leader Approved');
+  const prodIdx = header.indexOf('Product');
   let arr = 0, logos = 0;
+  const studio = { arr: 0, logos: 0 }, vini = { arr: 0, logos: 0 };
   for (const r of rows.slice(2)) {
     if (r.length <= Math.max(monthIdx, arrIdx, leaderIdx)) continue;
     if ((r[monthIdx] || '').trim() !== ym) continue;
     if ((r[leaderIdx] || '').trim().toLowerCase() === 'attempting revival') continue;
-    arr += money(r[arrIdx]);
-    logos++;
+    const a = money(r[arrIdx]);
+    arr += a; logos++;
+    const p = (prodIdx !== -1 ? (r[prodIdx] || '') : '').trim().toLowerCase();
+    if (p.includes('vini')) { vini.arr += a; vini.logos++; }
+    else { studio.arr += a; studio.logos++; }   // default non-Vini → Studio
   }
-  return { arr, logos };
+  return { arr, logos, studio, vini };
 }
 
 // OB tab rows: row 0 totals, row 1 subheader, row 2 header, data from row 3.
@@ -344,6 +353,8 @@ module.exports = async function handler(req, res) {
         arr: churn.arr,
         partnerChurnARR,
         totalARR: churn.arr + partnerChurnARR,
+        studio: churn.studio,   // { arr, logos } — Product = Studio (default)
+        vini: churn.vini,       // { arr, logos } — Product = Vini
       },
       newLive: {
         studio: studioNewLive,
@@ -357,6 +368,10 @@ module.exports = async function handler(req, res) {
         confirmed: confirmedTotal,
         total: newLiveTotal + confirmedTotal,
         confirmedRooftops: cVini.rooftops + cAmer.rooftops + cApac.rooftops,
+        // Target-gap view: how much of the monthly target is still to close.
+        target: NEW_LIVE_TARGET,
+        achieved: newLiveTotal + confirmedTotal,
+        gap: Math.max(0, NEW_LIVE_TARGET - (newLiveTotal + confirmedTotal)),
       },
       arrInOb: {
         studio: obAmer.arr + obApac.arr,
