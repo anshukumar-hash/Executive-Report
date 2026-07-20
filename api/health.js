@@ -295,12 +295,16 @@ module.exports = async function handler(req, res) {
         ticket: enterpriseTicketRag(a.eid, VINI_TIX, range),
         reportSent: reportRag(a.rid),
       }, { usage: 3, payment: 3, comm: 2, ticket: 2, reportSent: 2 });
+      // Active agents with zero health signals score NA. For the agent-count
+      // rollup we still need them represented, so treat unrated-active agents
+      // as Red (unmonitored → needs attention). This makes Green+Amber+Red per
+      // row equal the row's total active agents.
       const b = pick(a.agent);
       b.agents++; b.totalArr += a.arr;
-      if (g === 'Green') { b.green++; b.arr.green += a.arr; }
-      else if (g === 'Amber') { b.amber++; b.arr.amber += a.arr; }
-      else if (g === 'Red') { b.red++; b.arr.red += a.arr; }
-      else b.na++;
+      const gg = (g === 'NA' || !g) ? 'Red' : g;
+      if (gg === 'Green') { b.green++; b.arr.green += a.arr; }
+      else if (gg === 'Amber') { b.amber++; b.arr.amber += a.arr; }
+      else { b.red++; b.arr.red += a.arr; }
     }
 
     // ── Company GRR & NRR (ported from the CSM dashboard, overall scope) ──
