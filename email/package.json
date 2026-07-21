@@ -1,0 +1,13 @@
+{
+  "name": "exec-report-email",
+  "version": "1.0.0",
+  "description": "Daily Spyne Executive Report — inline-HTML email via Workspace SMTP.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "send": "node send-exec-email.mjs"
+  },
+  "dependencies": {
+    "nodemailer": "^6.10.1"
+  }
+}

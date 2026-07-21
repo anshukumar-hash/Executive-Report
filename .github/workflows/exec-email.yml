@@ -1,0 +1,58 @@
+name: Daily Executive Report Email
+
+on:
+  schedule:
+    # ~9:00 AM IST. GitHub cron is best-effort, so fire three windows and gate
+    # on "already sent today" → exactly one email even if a run is delayed.
+    # 03:20 / 04:00 / 05:00 UTC = 8:50 / 9:30 / 10:30 IST.
+    - cron: '20 3 * * *'
+    - cron: '0 4 * * *'
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: exec-report-email
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    env:
+      GMAIL_USER:         ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      DIGEST_RECIPIENTS:  ${{ secrets.DIGEST_RECIPIENTS }}
+    steps:
+      - name: Gate — skip if already sent today (scheduled runs only)
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          TODAY=$(date -u +%Y-%m-%d)
+          CNT=$(gh run list --workflow="exec-email.yml" --status success --json createdAt -R "$GITHUB_REPOSITORY" -q "[.[] | select(.createdAt | startswith(\"$TODAY\"))] | length" 2>/dev/null || echo 0)
+          if [ "${CNT:-0}" -gt 0 ]; then echo "Already sent today; skipping."; echo "skip=true" >> "$GITHUB_OUTPUT";
+          else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Checkout
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: email
+        run: npm install
+
+      - name: Build + send inline-HTML email
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: email
+        run: node send-exec-email.mjs

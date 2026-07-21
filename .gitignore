@@ -1,2 +1,5 @@
-.vercel
 .env*
+.vercel
+email/node_modules
+email/package-lock.json
+node_modules
