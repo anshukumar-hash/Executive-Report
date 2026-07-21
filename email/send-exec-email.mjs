@@ -75,16 +75,16 @@ const deptrow = (title, sub, cells, bg='#ffffff', inset=false) => `<tr><td style
     <td valign="middle" style="padding:14px 10px;"><table width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td>
   </tr></table></td></tr>`;
 
-const tile = (count, label, arr, color, bg) => `<td width="33%" valign="top" style="padding:0 6px;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; border-radius:10px;"><tr><td style="padding:15px 18px;">
-    <div style="font-family:${serif}; font-size:32px; font-weight:bold; color:${color};">${count}</div>
-    <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:4px;">${label}</div>
-    <div style="font-family:${sans}; font-size:14px; font-weight:bold; color:${INK}; padding-top:3px;">${arr}</div>
+const tile = (count, label, arr, color, bg, compact=false) => `<td width="33%" valign="top" style="padding:0 6px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; border-radius:10px;"><tr><td style="padding:${compact?'10px 16px':'15px 18px'};">
+    <div style="font-family:${serif}; font-size:${compact?'26px':'32px'}; font-weight:bold; color:${color};">${count}</div>
+    <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:${compact?'2px':'4px'};">${label}</div>
+    <div style="font-family:${sans}; font-size:${compact?'13px':'14px'}; font-weight:bold; color:${INK}; padding-top:2px;">${arr}</div>
   </td></tr></table></td>`;
 
-const healthCells = b => tile(b.green,'Green',fbig(b.arr.green),GREEN,'#F4F7F2')
-  + tile(b.amber,'Amber',fbig(b.arr.amber),AMBER,'#FBF7EF')
-  + tile(b.red,'Red',fbig(b.arr.red),RED,'#FBF1F0');
+const healthCells = (b, compact=false) => tile(b.green,'Green',fbig(b.arr.green),GREEN,'#F4F7F2',compact)
+  + tile(b.amber,'Amber',fbig(b.arr.amber),AMBER,'#FBF7EF',compact)
+  + tile(b.red,'Red',fbig(b.arr.red),RED,'#FBF1F0',compact);
 
 function buildHTML(m, h, delivery, support, charts) {
   const img = delivery.imagePendency != null ? String(delivery.imagePendency) : '—';
@@ -100,10 +100,10 @@ function buildHTML(m, h, delivery, support, charts) {
   rows += deptrow('Support','Operations', metric('Pending Tickets · Vini',String(pt.vini))+metric('Pending Tickets · Studio',String(pt.studio),'',INK,true)+'<td width="33%"></td>');
   rows += deptrow('Delivery','Operations', metric('Pendency · Image',img)+metric('Pendency · Video',video,'',INK,true)+metric('Pendency · 360',three,'',INK,true));
   rows += deptrow('Studio Product','Product · Rooftops', healthCells(h.studio), STUDIO_BG);
-  rows += deptrow('Sales IB','Vini · Agents · ARR', healthCells(h.salesIB), SALES_BG, true);
-  rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), SALES_BG, true);
-  rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), SVC_BG, true);
-  rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), SVC_BG, true);
+  rows += deptrow('Sales IB','Vini · Agents · ARR', healthCells(h.salesIB, true), SALES_BG);
+  rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB, true), SALES_BG);
+  rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB, true), SVC_BG);
+  rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB, true), SVC_BG);
   rows += deptrow('Finance','Finance', finCell('GM · Tech (Studio) · Jan→Jun','74.32%',charts.studio,false)+finCell('GM · Tech (Vini) · Jan→Jun','33.16%',charts.vini,true));
 
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
