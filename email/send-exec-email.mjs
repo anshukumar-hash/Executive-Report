@@ -4,14 +4,17 @@
 // Workspace/Gmail SMTP.
 //
 // Env:
-//   GMAIL_USER          — sending address (e.g. reports@spyne.ai)
+//   GMAIL_USER          — sending address (SMTP auth user)
 //   GMAIL_APP_PASSWORD  — Google app password for that account
-//   DIGEST_RECIPIENTS   — optional; defaults to saurabh.shah@spyne.ai
+//   DIGEST_RECIPIENTS   — TO list (default reports@spyne.ai)
+//   CC_RECIPIENTS       — CC list (default saurabh.shah@spyne.ai)
 //   BASE_URL            — optional; defaults to the deployed dashboard
 import nodemailer from 'nodemailer';
 
 const BASE = process.env.BASE_URL || 'https://exec-report-repo.vercel.app';
-const TO = (process.env.DIGEST_RECIPIENTS || 'saurabh.shah@spyne.ai')
+const TO = (process.env.DIGEST_RECIPIENTS || 'reports@spyne.ai')
+  .split(/[,\s]+/).filter(Boolean);
+const CC = (process.env.CC_RECIPIENTS || 'saurabh.shah@spyne.ai')
   .split(/[,\s]+/).filter(Boolean);
 const user = process.env.GMAIL_USER;
 const pass = process.env.GMAIL_APP_PASSWORD;
@@ -43,19 +46,21 @@ const kpi = (label, val, c=IVORY50) => `<td width="25%" valign="top" style="padd
 // Monthly GM% (Jan→Jun) for the Finance trend.
 const STUDIO_GM = [79.65,76.69,76.21,74.90,76.82,74.32];
 const VINI_GM   = [3.09,22.02,63.82,38.38,44.82,33.16];
-// Email-safe mini bar chart (SVG is stripped by Gmail/Outlook; table bars render everywhere).
-const sparkbars = (vals, color) => {
-  const H = 40;
-  const bars = vals.map(v => {
-    const bh = Math.max(2, Math.round(v / 100 * H));
-    return `<td width="15" valign="bottom" style="padding:0 2px; height:${H}px;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td height="${bh}" style="background:${color}; border-radius:2px 2px 0 0; font-size:0; line-height:0;">&nbsp;</td></tr></table></td>`;
-  }).join('');
-  return `<table cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr>${bars}</tr></table>`;
+// True line sparkline as SVG → rendered to PNG (below) so it survives Gmail/Outlook.
+const sparkSVG = (vals, color) => {
+  const W = 210, H = 44, n = vals.length;
+  const pts = vals.map((v, i) => [3 + i / (n - 1) * (W - 6), 4 + (1 - v / 100) * (H - 8)]);
+  const poly = pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const [lx, ly] = pts[n - 1];
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`
+    + `<polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
+    + `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="3" fill="${color}"/></svg>`;
 };
-const finCell = (label, val, vals, color, border=false) => `<td width="50%" valign="top" style="padding:0 14px;${border?'border-left:1px solid #E9E1D4;':''}">
+// finCell takes ready-made chart <img> HTML (cid: for email, data: for preview).
+const finCell = (label, val, chartHtml, border=false) => `<td width="50%" valign="top" style="padding:0 14px;${border?'border-left:1px solid #E9E1D4;':''}">
   <div style="font-family:${serif}; font-size:24px; color:${INK};">${val}</div>
   <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:5px;">${label}</div>
-  ${sparkbars(vals, color)}</td>`;
+  ${chartHtml}</td>`;
 
 const metric = (label, val, sub='', c=INK, border=false) => `<td width="33%" valign="top" style="padding:0 14px;${border?'border-left:1px solid #E9E1D4;':''}">
   <div style="font-family:${serif}; font-size:24px; color:${c};">${val}</div>
@@ -81,7 +86,7 @@ const healthCells = b => tile(b.green,'Green',fbig(b.arr.green),GREEN,'#F4F7F2')
   + tile(b.amber,'Amber',fbig(b.arr.amber),AMBER,'#FBF7EF')
   + tile(b.red,'Red',fbig(b.arr.red),RED,'#FBF1F0');
 
-function buildHTML(m, h, delivery, support) {
+function buildHTML(m, h, delivery, support, charts) {
   const img = delivery.imagePendency != null ? String(delivery.imagePendency) : '—';
   const video = delivery.videoPendency != null ? String(delivery.videoPendency) : '—';
   const three = delivery.threeSixtyPendency != null ? String(delivery.threeSixtyPendency) : '—';
@@ -99,7 +104,7 @@ function buildHTML(m, h, delivery, support) {
   rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), SALES_BG);
   rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), SVC_BG);
   rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), SVC_BG);
-  rows += deptrow('Finance','Finance', finCell('GM · Tech (Studio) · Jan→Jun','74.32%',STUDIO_GM,GREEN)+finCell('GM · Tech (Vini) · Jan→Jun','33.16%',VINI_GM,WINE,true));
+  rows += deptrow('Finance','Finance', finCell('GM · Tech (Studio) · Jan→Jun','74.32%',charts.studio,false)+finCell('GM · Tech (Vini) · Jan→Jun','33.16%',charts.vini,true));
 
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -126,11 +131,34 @@ const [m, h, delivery, support] = await Promise.all([
   getJSON('/api/metrics'), getJSON('/api/health'),
   getJSON('/api/delivery').catch(() => ({})), getJSON('/api/support').catch(() => ({})),
 ]);
-const html = buildHTML(m, h, delivery, support);
 const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+const previewMode = !!process.env.WRITE_HTML;
+
+// Render the two GM sparklines to PNG. In send mode use cid: (survives Gmail);
+// in preview mode inline as data: URIs so a browser can show them.
+const attachments = [];
+async function chartImg(id, vals, color) {
+  try {
+    const { Resvg } = await import('@resvg/resvg-js');
+    const png = new Resvg(sparkSVG(vals, color), { fitTo: { mode: 'width', value: 420 } })
+      .render().asPng();
+    const src = previewMode ? `data:image/png;base64,${png.toString('base64')}` : `cid:${id}`;
+    if (!previewMode) attachments.push({ filename: `${id}.png`, content: png, cid: id });
+    return `<img src="${src}" width="210" height="44" alt="Jan→Jun trend" style="display:block; margin-top:8px;"/>`;
+  } catch (e) {
+    console.warn('sparkline render failed (' + id + '):', e.message);
+    return '';  // graceful: number + label still show
+  }
+}
+const charts = {
+  studio: await chartImg('gm-studio', STUDIO_GM, GREEN),
+  vini:   await chartImg('gm-vini',   VINI_GM,   WINE),
+};
+
+const html = buildHTML(m, h, delivery, support, charts);
 
 // Build-only: WRITE_HTML=<path> dumps the email HTML and exits (no send).
-if (process.env.WRITE_HTML) {
+if (previewMode) {
   const { writeFileSync } = await import('fs');
   writeFileSync(process.env.WRITE_HTML, html);
   console.log('Wrote', process.env.WRITE_HTML, '(', html.length, 'bytes ) — no email sent');
@@ -144,9 +172,9 @@ const tx = nodemailer.createTransport({
   auth: { user, pass },
 });
 const info = await tx.sendMail({
-  from: user, to: TO,
+  from: user, to: TO, cc: CC.length ? CC : undefined,
   subject: `Spyne Executive Report — ${today}`,
   text: `Spyne Executive Report for ${today}. View the live dashboard: ${BASE}`,
-  html,
+  html, attachments,
 });
-console.log('Sent exec report to', TO.join(', '), '— id', info.messageId);
+console.log('Sent exec report to', TO.join(', '), CC.length ? '(cc ' + CC.join(', ') + ')' : '', '— id', info.messageId);

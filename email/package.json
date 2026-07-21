@@ -8,6 +8,7 @@
     "send": "node send-exec-email.mjs"
   },
   "dependencies": {
-    "nodemailer": "^6.10.1"
+    "nodemailer": "^6.10.1",
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

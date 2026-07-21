@@ -2,12 +2,12 @@ name: Daily Executive Report Email
 
 on:
   schedule:
-    # ~9:00 AM IST. GitHub cron is best-effort, so fire three windows and gate
+    # ~3:00 AM IST. GitHub cron is best-effort, so fire three windows and gate
     # on "already sent today" → exactly one email even if a run is delayed.
-    # 03:20 / 04:00 / 05:00 UTC = 8:50 / 9:30 / 10:30 IST.
-    - cron: '20 3 * * *'
-    - cron: '0 4 * * *'
-    - cron: '0 5 * * *'
+    # 21:30 / 22:00 / 22:30 UTC = 3:00 / 3:30 / 4:00 AM IST (IST = UTC+5:30).
+    - cron: '30 21 * * *'
+    - cron: '0 22 * * *'
+    - cron: '30 22 * * *'
   workflow_dispatch: {}
 
 concurrency:
@@ -25,6 +25,7 @@ jobs:
       GMAIL_USER:         ${{ secrets.SENDER_EMAIL }}
       GMAIL_APP_PASSWORD: ${{ secrets.SENDER_APP_PASSWORD }}
       DIGEST_RECIPIENTS:  ${{ secrets.RECEIVER_EMAIL }}
+      CC_RECIPIENTS:      ${{ secrets.CC_RECIPIENTS }}
     steps:
       - name: Gate — skip if already sent today (scheduled runs only)
         id: gate
