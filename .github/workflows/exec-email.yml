@@ -22,9 +22,9 @@ jobs:
   send:
     runs-on: ubuntu-latest
     env:
-      GMAIL_USER:         ${{ secrets.SENDOR_EMAIL }}
-      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-      DIGEST_RECIPIENTS:  ${{ secrets.DIGEST_RECIPIENTS }}
+      GMAIL_USER:         ${{ secrets.SENDER_EMAIL }}
+      GMAIL_APP_PASSWORD: ${{ secrets.SENDER_APP_PASSWORD }}
+      DIGEST_RECIPIENTS:  ${{ secrets.RECEIVER_EMAIL }}
     steps:
       - name: Gate — skip if already sent today (scheduled runs only)
         id: gate
