@@ -22,7 +22,7 @@ jobs:
   send:
     runs-on: ubuntu-latest
     env:
-      GMAIL_USER:         ${{ secrets.GMAIL_USER }}
+      GMAIL_USER:         ${{ secrets.SENDOR_EMAIL }}
       GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
       DIGEST_RECIPIENTS:  ${{ secrets.DIGEST_RECIPIENTS }}
     steps:
