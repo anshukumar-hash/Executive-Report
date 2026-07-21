@@ -35,6 +35,23 @@ try {
 const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 const filename = `spyne-exec-report-${today.replace(/ /g, '-')}.png`;
 const comment = process.env.SLACK_COMMENT || `:bar_chart: *Spyne Executive Report — ${today}*  ·  <${BASE}|Open live dashboard>`;
+const username = process.env.SLACK_USERNAME || 'Executive_Report_Bot';
+
+// 2a) Post a header message under the custom sender name (chat.postMessage is the
+//     only API that supports a per-message username; needs chat:write.customize).
+//     The screenshot then threads under it. If the scope is missing, we fall back
+//     to posting the file directly with the app's default name.
+let threadTs;
+try {
+  const rh = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ channel, text: comment, username, icon_emoji: ':bar_chart:' }),
+  });
+  const jh = await rh.json();
+  if (jh.ok) threadTs = jh.ts;
+  else console.warn(`chat.postMessage custom-name failed (${jh.error}) — posting under app name instead`);
+} catch (e) { console.warn('header post error:', e.message); }
 
 const r1 = await fetch('https://slack.com/api/files.getUploadURLExternal', {
   method: 'POST',
@@ -55,9 +72,10 @@ const r3 = await fetch('https://slack.com/api/files.completeUploadExternal', {
   body: JSON.stringify({
     files: [{ id: j1.file_id, title: `Spyne Executive Report — ${today}` }],
     channel_id: channel,
-    initial_comment: comment,
+    // Thread under the custom-named header when it posted; else caption the file.
+    ...(threadTs ? { thread_ts: threadTs } : { initial_comment: comment }),
   }),
 });
 const j3 = await r3.json();
 if (!j3.ok) throw new Error('completeUploadExternal failed: ' + j3.error);
-console.log(`Posted exec report screenshot to Slack channel ${channel}.`);
+console.log(`Posted exec report screenshot to Slack channel ${channel}${threadTs ? ' as ' + username : ''}.`);
