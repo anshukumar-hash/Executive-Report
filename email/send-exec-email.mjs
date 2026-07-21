@@ -67,7 +67,7 @@ const metric = (label, val, sub='', c=INK, border=false) => `<td width="33%" val
   <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:5px;">${label}</div>
   ${sub?`<div style="font-family:${sans}; font-size:10px; color:${MUT}; padding-top:3px; white-space:nowrap;">${sub}</div>`:''}</td>`;
 
-const deptrow = (title, sub, cells, bg='#ffffff') => `<tr><td style="padding:0 0 10px 0;">
+const deptrow = (title, sub, cells, bg='#ffffff', inset=false) => `<tr><td style="padding:0 ${inset?'56px':'0'} 10px ${inset?'56px':'0'};">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; border-radius:12px;"><tr>
     <td width="150" valign="middle" style="padding:14px 16px;">
       <div style="font-family:${sans}; font-size:14px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:${WINE};">${title}</div>
@@ -100,10 +100,10 @@ function buildHTML(m, h, delivery, support, charts) {
   rows += deptrow('Support','Operations', metric('Pending Tickets · Vini',String(pt.vini))+metric('Pending Tickets · Studio',String(pt.studio),'',INK,true)+'<td width="33%"></td>');
   rows += deptrow('Delivery','Operations', metric('Pendency · Image',img)+metric('Pendency · Video',video,'',INK,true)+metric('Pendency · 360',three,'',INK,true));
   rows += deptrow('Studio Product','Product · Rooftops', healthCells(h.studio), STUDIO_BG);
-  rows += deptrow('Sales IB','Vini · Agents · ARR', healthCells(h.salesIB), SALES_BG);
-  rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), SALES_BG);
-  rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), SVC_BG);
-  rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), SVC_BG);
+  rows += deptrow('Sales IB','Vini · Agents · ARR', healthCells(h.salesIB), SALES_BG, true);
+  rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), SALES_BG, true);
+  rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), SVC_BG, true);
+  rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), SVC_BG, true);
   rows += deptrow('Finance','Finance', finCell('GM · Tech (Studio) · Jan→Jun','74.32%',charts.studio,false)+finCell('GM · Tech (Vini) · Jan→Jun','33.16%',charts.vini,true));
 
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
