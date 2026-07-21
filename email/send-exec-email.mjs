@@ -31,7 +31,10 @@ const fbig = v => v >= 1e6 ? fm(v) : fk(v);
 // ─── palette / fonts ─────────────────────────────────────────────────────────
 const INK='#211A15', IVORY='#F6F1E8', IVORY50='#FBF8F3', WINE='#7A2E45', GOLD='#C6A86B',
       TAUPE='#A89A8C', MUT='#8A7D6F', GREEN='#5C7A52', AMBER='#B8862F', RED='#A33B36';
-const serif="Georgia, 'Times New Roman', serif", sans="Arial, Helvetica, sans-serif";
+// Single professional sans throughout — consistent baselines, clean for leadership.
+const serif="'Helvetica Neue', Helvetica, Arial, sans-serif", sans="'Helvetica Neue', Helvetica, Arial, sans-serif";
+// Row tints — distinct from the ivory page and from each other.
+const STUDIO_BG='#E4EDF6', SALES_BG='#F1E6D0', SVC_BG='#E2EDE3';
 
 const kpi = (label, val, c=IVORY50) => `<td width="25%" valign="top" style="padding:0 10px; border-left:1px solid rgba(214,189,134,0.28);">
   <div style="font-family:${sans}; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:${TAUPE}; font-weight:bold;">${label}</div>
@@ -40,7 +43,7 @@ const kpi = (label, val, c=IVORY50) => `<td width="25%" valign="top" style="padd
 const metric = (label, val, sub='', c=INK, border=false) => `<td width="33%" valign="top" style="padding:0 14px;${border?'border-left:1px solid #E9E1D4;':''}">
   <div style="font-family:${serif}; font-size:24px; color:${c};">${val}</div>
   <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:5px;">${label}</div>
-  ${sub?`<div style="font-family:${sans}; font-size:11px; color:${MUT}; padding-top:3px;">${sub}</div>`:''}</td>`;
+  ${sub?`<div style="font-family:${sans}; font-size:10px; color:${MUT}; padding-top:3px; white-space:nowrap;">${sub}</div>`:''}</td>`;
 
 const deptrow = (title, sub, cells, bg='#ffffff') => `<tr><td style="padding:0 0 10px 0;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; border-radius:12px;"><tr>
@@ -74,11 +77,11 @@ function buildHTML(m, h, delivery, support) {
   rows += deptrow('Customer Success','Churned / Contracted', metric('Accounts',String(cs.logos),`Studio ${cs.studio.logos} · Vini ${cs.vini.logos}`)+metric('Revenue',fbig(cs.totalARR),`Studio ${fbig(cs.studio.arr)} · Vini ${fbig(cs.vini.arr)}`,RED,true)+'<td width="33%"></td>');
   rows += deptrow('Support','Operations', metric('Pending Tickets · Vini',String(pt.vini))+metric('Pending Tickets · Studio',String(pt.studio),'',INK,true)+'<td width="33%"></td>');
   rows += deptrow('Delivery','Operations', metric('Pendency · Image',img)+metric('Pendency · Video',video,'',INK,true)+metric('Pendency · 360',three,'',INK,true));
-  rows += deptrow('Studio Product','Product · Rooftops', healthCells(h.studio), '#EDF2F7');
-  rows += deptrow('Sales IB','Vini · Agents · ARR', healthCells(h.salesIB), '#F5F1E7');
-  rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), '#F5F1E7');
-  rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), '#ECF1EC');
-  rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), '#ECF1EC');
+  rows += deptrow('Studio Product','Product · Rooftops', healthCells(h.studio), STUDIO_BG);
+  rows += deptrow('Sales IB','Vini · Agents · ARR', healthCells(h.salesIB), SALES_BG);
+  rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), SALES_BG);
+  rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), SVC_BG);
+  rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), SVC_BG);
   rows += deptrow('Finance','Finance', metric('GM · Tech (Studio)','74.32%')+metric('GM · Tech (Vini)','33.16%','',INK,true)+'<td width="33%"></td>');
 
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
@@ -108,6 +111,14 @@ const [m, h, delivery, support] = await Promise.all([
 ]);
 const html = buildHTML(m, h, delivery, support);
 const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+
+// Build-only: WRITE_HTML=<path> dumps the email HTML and exits (no send).
+if (process.env.WRITE_HTML) {
+  const { writeFileSync } = await import('fs');
+  writeFileSync(process.env.WRITE_HTML, html);
+  console.log('Wrote', process.env.WRITE_HTML, '(', html.length, 'bytes ) — no email sent');
+  process.exit(0);
+}
 
 const tx = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
