@@ -37,8 +37,25 @@ const serif="'Helvetica Neue', Helvetica, Arial, sans-serif", sans="'Helvetica N
 const STUDIO_BG='#E4EDF6', SALES_BG='#F1E6D0', SVC_BG='#E2EDE3';
 
 const kpi = (label, val, c=IVORY50) => `<td width="25%" valign="top" style="padding:0 10px; border-left:1px solid rgba(214,189,134,0.28);">
-  <div style="font-family:${sans}; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:${TAUPE}; font-weight:bold;">${label}</div>
-  <div style="font-family:${serif}; font-size:26px; color:${c}; padding-top:6px;">${val}</div></td>`;
+  <div style="font-family:${sans}; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:${TAUPE}; font-weight:bold;">${label}</div>
+  <div style="font-family:${serif}; font-size:34px; font-weight:bold; color:${c}; padding-top:8px;">${val}</div></td>`;
+
+// Monthly GM% (Jan→Jun) for the Finance trend.
+const STUDIO_GM = [79.65,76.69,76.21,74.90,76.82,74.32];
+const VINI_GM   = [3.09,22.02,63.82,38.38,44.82,33.16];
+// Email-safe mini bar chart (SVG is stripped by Gmail/Outlook; table bars render everywhere).
+const sparkbars = (vals, color) => {
+  const H = 40;
+  const bars = vals.map(v => {
+    const bh = Math.max(2, Math.round(v / 100 * H));
+    return `<td width="15" valign="bottom" style="padding:0 2px; height:${H}px;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td height="${bh}" style="background:${color}; border-radius:2px 2px 0 0; font-size:0; line-height:0;">&nbsp;</td></tr></table></td>`;
+  }).join('');
+  return `<table cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr>${bars}</tr></table>`;
+};
+const finCell = (label, val, vals, color, border=false) => `<td width="50%" valign="top" style="padding:0 14px;${border?'border-left:1px solid #E9E1D4;':''}">
+  <div style="font-family:${serif}; font-size:24px; color:${INK};">${val}</div>
+  <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:5px;">${label}</div>
+  ${sparkbars(vals, color)}</td>`;
 
 const metric = (label, val, sub='', c=INK, border=false) => `<td width="33%" valign="top" style="padding:0 14px;${border?'border-left:1px solid #E9E1D4;':''}">
   <div style="font-family:${serif}; font-size:24px; color:${c};">${val}</div>
@@ -54,10 +71,10 @@ const deptrow = (title, sub, cells, bg='#ffffff') => `<tr><td style="padding:0 0
   </tr></table></td></tr>`;
 
 const tile = (count, label, arr, color, bg) => `<td width="33%" valign="top" style="padding:0 6px;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; border-radius:8px;"><tr><td style="padding:9px 12px;">
-    <div style="font-family:${serif}; font-size:22px; color:${color};">${count}</div>
-    <div style="font-family:${sans}; font-size:11px; color:${MUT}; padding-top:2px;">${label}</div>
-    <div style="font-family:${sans}; font-size:12px; font-weight:bold; color:${INK}; padding-top:2px;">${arr}</div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; border-radius:10px;"><tr><td style="padding:15px 18px;">
+    <div style="font-family:${serif}; font-size:32px; font-weight:bold; color:${color};">${count}</div>
+    <div style="font-family:${sans}; font-size:12px; color:${MUT}; padding-top:4px;">${label}</div>
+    <div style="font-family:${sans}; font-size:14px; font-weight:bold; color:${INK}; padding-top:3px;">${arr}</div>
   </td></tr></table></td>`;
 
 const healthCells = b => tile(b.green,'Green',fbig(b.arr.green),GREEN,'#F4F7F2')
@@ -82,7 +99,7 @@ function buildHTML(m, h, delivery, support) {
   rows += deptrow('Sales OB','Vini · Agents · ARR', healthCells(h.salesOB), SALES_BG);
   rows += deptrow('Service IB','Vini · Agents · ARR', healthCells(h.serviceIB), SVC_BG);
   rows += deptrow('Service OB','Vini · Agents · ARR', healthCells(h.serviceOB), SVC_BG);
-  rows += deptrow('Finance','Finance', metric('GM · Tech (Studio)','74.32%')+metric('GM · Tech (Vini)','33.16%','',INK,true)+'<td width="33%"></td>');
+  rows += deptrow('Finance','Finance', finCell('GM · Tech (Studio) · Jan→Jun','74.32%',STUDIO_GM,GREEN)+finCell('GM · Tech (Vini) · Jan→Jun','33.16%',VINI_GM,WINE,true));
 
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
