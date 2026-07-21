@@ -5,10 +5,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "send": "node send-exec-email.mjs"
+    "send": "node send-exec-email.mjs",
+    "slack": "node shoot-and-slack.mjs"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "nodemailer": "^6.10.1",
-    "@resvg/resvg-js": "^2.6.2"
+    "playwright": "^1.61.1"
   }
 }

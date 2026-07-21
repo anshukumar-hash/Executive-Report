@@ -1,0 +1,58 @@
+name: Daily Executive Report Slack
+
+on:
+  schedule:
+    # ~3:00 AM IST. Best-effort cron → three windows + already-sent gate.
+    # 21:30 / 22:00 / 22:30 UTC = 3:00 / 3:30 / 4:00 AM IST.
+    - cron: '30 21 * * *'
+    - cron: '0 22 * * *'
+    - cron: '30 22 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: exec-report-slack
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  slack:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL }}
+    steps:
+      - name: Gate — skip if already posted today (scheduled runs only)
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          TODAY=$(date -u +%Y-%m-%d)
+          CNT=$(gh run list --workflow="exec-slack.yml" --status success --json createdAt -R "$GITHUB_REPOSITORY" -q "[.[] | select(.createdAt | startswith(\"$TODAY\"))] | length" 2>/dev/null || echo 0)
+          if [ "${CNT:-0}" -gt 0 ]; then echo "Already posted today; skipping."; echo "skip=true" >> "$GITHUB_OUTPUT";
+          else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Checkout
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps + Chromium
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: email
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Screenshot + post to Slack
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: email
+        run: node shoot-and-slack.mjs
