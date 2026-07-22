@@ -169,6 +169,38 @@ async function fetchDashboardData() {
   return JSON.parse(html.slice(from, end).replace(/;\s*$/, ''));
 }
 
+// Vini agent universe — mirrors the CSM dashboard, which now sources agents
+// from Metabase card 12755 ("grain"): unique (team_id, agent_type), Live-only,
+// latest day. Returns { grain:[{rid,agent,eid,en,arr,seg}], apptMtd:{ 'rid|agent': $value } }.
+const VINI_GRAIN_CARD_ID = Number(process.env.METABASE_VINI_CARD_ID || 12755);
+async function fetchViniGrain(ym) {
+  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
+  const key = process.env.METABASE_API_KEY;
+  if (!base || !key) return null;
+  const res = await fetch(`${base}/api/card/${VINI_GRAIN_CARD_ID}/query/json`, {
+    method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`vini card ${VINI_GRAIN_CARD_ID} -> HTTP ${res.status}`);
+  const rows = await res.json();
+  if (!Array.isArray(rows)) return null;
+  const latest = {}, apptMtd = {};
+  for (const x of rows) {
+    const rid = x.team_id, agent = x.agent_type;
+    if (!rid || !agent) continue;
+    const k = rid + '|' + agent;
+    if (!latest[k] || x.day > latest[k].day) latest[k] = x;
+    // MTD appointment value = Σ(appointments this month) × $-per-appt for the type.
+    if (String(x.day || '').slice(0, 7) === ym) {
+      apptMtd[k] = (apptMtd[k] || 0) + (Number(x.appointments) || 0) * apptValuePerAppt(agent);
+    }
+  }
+  const grain = Object.values(latest)
+    .filter(x => String(x.rooftop_stage || '').toLowerCase() === 'live')
+    .map(x => ({ rid: x.team_id, agent: x.agent_type, eid: x.enterprise_id,
+                 en: x.enterprise_name, arr: Number(x.arr) || 0, seg: x.customer_segment }));
+  return { grain, apptMtd };
+}
+
 async function fetchReportTracking(today) {
   // Last 7 days of roi_digest_runs → rid -> { 'YYYY-MM-DD': 'sent'|... }
   try {
@@ -200,9 +232,11 @@ module.exports = async function handler(req, res) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const range = mtdRange(today);
 
-    const [D, reportTracking] = await Promise.all([
+    const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const [D, reportTracking, viniGrain] = await Promise.all([
       fetchDashboardData(),
       fetchReportTracking(today),
+      fetchViniGrain(ym).catch(() => null),
     ]);
 
     const csatRag = makeCsatRag(D.csat_all_by_eid || {}, D.csat_all_by_name || {}, range);
@@ -234,33 +268,29 @@ module.exports = async function handler(req, res) {
       else studio.na++;
     }
 
-    // ── VINI agents (port of viniAggregateRooftops, health-relevant fields) ──
-    const V_COL = {}; (D.v_schema || []).forEach((k, i) => V_COL[k] = i);
+    // ── VINI agents — universe from card 12755 grain (Live-only), same as CSM.
+    // Payment (ps) is joined from the Payment snapshot (vs_rows) by (rid, agent);
+    // MTD RoI comes from card-12755 appointment value ÷ prorated MTD MRR (arr/12).
+    // Payment score joined from the Payment master (D.vini_stage objects) by
+    // (rid, agent) — same source the CSM dashboard's card mode uses.
     const VINI_STAGE = Array.isArray(D.vini_stage) ? D.vini_stage
       : (D.vini_stage && Array.isArray(D.vini_stage.value) ? D.vini_stage.value : []);
-    const byKey = {};
+    const psByKey = {};
     for (const s of VINI_STAGE) {
       if (!s.rid) continue;
-      const key = s.rid + '|' + (s.agent || '');
-      if (byKey[key]) {
-        const e = byKey[key];
-        e.mrr += Number(s.mrr) || 0;
-        e.arr += Number(s.arr) || 0;
-        if (s.stage === 'Churned') e.stage = 'Churned';
-        continue;
-      }
-      byKey[key] = {
-        rid: s.rid, eid: s.eid, en: s.en, agent: s.agent || '', stage: s.stage || '',
-        mrr: Number(s.mrr) || 0, arr: Number(s.arr) || 0, ps: s.ps,
-        apptValue_mtd: 0,
-      };
+      const k = s.rid + '|' + (s.agent || '');
+      if (psByKey[k] == null && s.ps) psByKey[k] = s.ps;
     }
-    for (const r of (D.v_rows || [])) {
-      const day = r[V_COL.day];
-      if (!day || day < range.from || day > range.to) continue;
-      const a = byKey[r[V_COL.rid] + '|' + (r[V_COL.agent] || '')];
-      if (!a) continue;
-      a.apptValue_mtd += (Number(r[V_COL.a]) || 0) * apptValuePerAppt(a.agent);
+    const grain = (viniGrain && viniGrain.grain) || [];
+    const apptMtd = (viniGrain && viniGrain.apptMtd) || {};
+    const byKey = {};
+    for (const g of grain) {
+      const key = g.rid + '|' + g.agent;
+      byKey[key] = {
+        rid: g.rid, eid: g.eid, en: g.en, agent: g.agent,
+        arr: g.arr, mrr: g.arr / 12, ps: psByKey[key],
+        apptValue_mtd: apptMtd[key] || 0,
+      };
     }
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const mtdFactor = today.getDate() / daysInMonth;
@@ -286,7 +316,6 @@ module.exports = async function handler(req, res) {
       return other;
     };
     for (const a of Object.values(byKey)) {
-      if (String(a.stage || '').toLowerCase() === 'churned') continue;
       const roiMtd = (a.mrr * mtdFactor) > 0 ? a.apptValue_mtd / (a.mrr * mtdFactor) : 0;
       const g = blend({
         usage: roiMtdRag(roiMtd),
@@ -295,16 +324,13 @@ module.exports = async function handler(req, res) {
         ticket: enterpriseTicketRag(a.eid, VINI_TIX, range),
         reportSent: reportRag(a.rid),
       }, { usage: 3, payment: 3, comm: 2, ticket: 2, reportSent: 2 });
-      // Active agents with zero health signals score NA. For the agent-count
-      // rollup we still need them represented, so treat unrated-active agents
-      // as Red (unmonitored → needs attention). This makes Green+Amber+Red per
-      // row equal the row's total active agents.
       const b = pick(a.agent);
       b.agents++; b.totalArr += a.arr;
-      const gg = (g === 'NA' || !g) ? 'Red' : g;
-      if (gg === 'Green') { b.green++; b.arr.green += a.arr; }
-      else if (gg === 'Amber') { b.amber++; b.arr.amber += a.arr; }
-      else { b.red++; b.arr.red += a.arr; }
+      // NA excluded from Green/Amber/Red counts — matches the CSM dashboard.
+      if (g === 'Green') { b.green++; b.arr.green += a.arr; }
+      else if (g === 'Amber') { b.amber++; b.arr.amber += a.arr; }
+      else if (g === 'Red') { b.red++; b.arr.red += a.arr; }
+      else b.na++;
     }
 
     // ── Company GRR & NRR (ported from the CSM dashboard, overall scope) ──
