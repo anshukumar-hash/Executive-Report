@@ -73,6 +73,38 @@ WHERE is_qc_on = 1
   AND toString(is_360) IN ('0', 'false', 'FALSE')
   AND pending_duration_hours > 6`;
 
+// Video pendency = Metabase card 12748 (single scalar, e.g. COUNT(video_id)).
+// 360 pendency   = Metabase card 7160 (per-enterprise rows; total = SUM(Pending)).
+const VIDEO_CARD_ID = Number(process.env.METABASE_VIDEO_CARD_ID || 12748);
+const THREESIXTY_CARD_ID = Number(process.env.METABASE_360_CARD_ID || 7160);
+
+// Fetch a saved card's result rows (array of objects) via the card query API.
+async function metabaseCardRows(id) {
+  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
+  const key = process.env.METABASE_API_KEY;
+  if (!base || !key || !id) return null;
+  const res = await fetch(`${base}/api/card/${id}/query/json`, {
+    method: 'POST',
+    headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`metabase card ${id} -> HTTP ${res.status}`);
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows : null;
+}
+// First numeric cell of the first row (for single-value cards like Video).
+async function cardScalar(id) {
+  const rows = await metabaseCardRows(id);
+  if (!rows || !rows.length) return null;
+  const v = Number(Object.values(rows[0])[0]);
+  return isNaN(v) ? null : v;
+}
+// Sum a numeric column across all rows (for the 360 per-enterprise breakdown).
+async function cardColumnSum(id, col) {
+  const rows = await metabaseCardRows(id);
+  if (!rows || !rows.length) return null;
+  return rows.reduce((s, r) => s + (Number(r[col]) || 0), 0);
+}
+
 // Runs one native SQL query against Metabase's dataset API and returns the first
 // scalar cell as a number (null on any failure).
 async function metabaseScalar(sql) {
@@ -100,9 +132,8 @@ module.exports = async function handler(req, res) {
   try {
     const [imagePendency, videoPendency, threeSixtyPendency] = await Promise.all([
       metabaseScalar(IMAGE_PENDENCY_SQL).catch(() => null),
-      // Placeholders — swap in the Video / 360 pendency SQL when provided.
-      Promise.resolve(null),
-      Promise.resolve(null),
+      cardScalar(VIDEO_CARD_ID).catch(() => null),                 // card 12748
+      cardColumnSum(THREESIXTY_CARD_ID, 'Pending').catch(() => null), // card 7160
     ]);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
