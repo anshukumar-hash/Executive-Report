@@ -1,0 +1,15 @@
+{
+  "name": "executive-report",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Spyne Executive Report — dashboard + live metric APIs (ECS Fargate).",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
