@@ -95,7 +95,7 @@ function buildHTML(m, h, delivery, support, charts) {
 
   let rows = '';
   rows += deptrow('Sales','Growth', metric('New Sales MTD',fbig(m.newSales.arr))+metric('Sent to OB',fbig(m.newOb.total),'',INK,true)+metric('PWS',fbig(m.pws.total),'',INK,true));
-  rows += deptrow('Onboarding','Growth', metric('New Live MTD',fbig(m.newLive.total))+metric('Gap to Target',fbig(pl.gap),`Achieved ${fbig(pl.achieved)} / ${fm(pl.target)}`,RED,true)+metric('ARR in Ob',fbig(m.arrInOb.total),'',INK,true));
+  rows += deptrow('Onboarding','Growth', metric('New Live MTD',fbig(m.newLive.total))+metric('Gap to Target',fbig(pl.gap),`Projected Achieved ${fbig(pl.achieved)} / ${fm(pl.target)}`,RED,true)+metric('ARR in Ob',fbig(m.arrInOb.total),'',INK,true));
   rows += deptrow('Customer Success','Churned / Contracted', metric('Accounts',String(cs.logos),`Studio ${cs.studio.logos} · Vini ${cs.vini.logos}`)+metric('Revenue',fbig(cs.totalARR),`Studio ${fbig(cs.studio.arr)} · Vini ${fbig(cs.vini.arr)}`,RED,true)+'<td width="33%"></td>');
   rows += deptrow('Support','Operations', metric('Pending Tickets · Vini',String(pt.vini))+metric('Pending Tickets · Studio',String(pt.studio),'',INK,true)+'<td width="33%"></td>');
   rows += deptrow('Delivery','Operations', metric('Pendency · Image',img)+metric('Pendency · Video',video,'',INK,true)+metric('Pendency · 360',three,'',INK,true));
