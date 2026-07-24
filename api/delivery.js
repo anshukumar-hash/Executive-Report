@@ -76,7 +76,7 @@ WHERE is_qc_on = 1
 // Video pendency = Metabase card 12748 (single scalar, e.g. COUNT(video_id)).
 // 360 pendency   = Metabase card 7160 (per-enterprise rows; total = SUM(Pending)).
 const VIDEO_CARD_ID = Number(process.env.METABASE_VIDEO_CARD_ID || 12748);
-const THREESIXTY_CARD_ID = Number(process.env.METABASE_360_CARD_ID || 7160);
+const THREESIXTY_CARD_ID = Number(process.env.METABASE_360_CARD_ID || 12801);
 
 // Fetch a saved card's result rows (array of objects) via the card query API.
 async function metabaseCardRows(id) {
@@ -133,7 +133,7 @@ module.exports = async function handler(req, res) {
     const [imagePendency, videoPendency, threeSixtyPendency] = await Promise.all([
       metabaseScalar(IMAGE_PENDENCY_SQL).catch(() => null),
       cardScalar(VIDEO_CARD_ID).catch(() => null),                 // card 12748
-      cardColumnSum(THREESIXTY_CARD_ID, 'Pending').catch(() => null), // card 7160
+      cardColumnSum(THREESIXTY_CARD_ID, 'Pending').catch(() => null), // card 12801
     ]);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
