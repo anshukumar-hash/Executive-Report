@@ -336,7 +336,9 @@ module.exports = async function handler(req, res) {
     // ── Company GRR & NRR (ported from the CSM dashboard, overall scope) ──
     // GRR (Projected Yearly, compounded): (1 − churn/base)^12, base fixed at
     //   7,732,095 for the unfiltered overall headline.
-    // NRR = (base + expansion − revenue loss) / base, base 8,187,394.
+    // NRR (Projected Yearly, compounded): (1 + (expansion − revenue loss)/base)^12,
+    //   base 8,187,394. Compounded the SAME way as GRR so both headline figures
+    //   sit on one "projected yearly" basis and match the CSM dashboard exactly.
     // Inputs come from the same embedded snapshot (D.expansion, D.revenue_loss).
     const GRR_BASE = 7732095;
     const NRR_BASE = 8187394;
@@ -349,7 +351,7 @@ module.exports = async function handler(req, res) {
                + (Number(RL.partnerStudio) || 0) + (Number(RL.partnerVini) || 0);
     const exp = Number(EXP.arr) || 0;
     const grrPct = GRR_BASE > 0 ? Math.max(0, Math.pow(1 - loss / GRR_BASE, 12) * 100) : null;
-    const nrrPct = NRR_BASE > 0 ? (NRR_BASE + exp - loss) / NRR_BASE * 100 : null;
+    const nrrPct = NRR_BASE > 0 ? Math.pow(1 + (exp - loss) / NRR_BASE, 12) * 100 : null;
 
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=120');
     return res.status(200).json({
