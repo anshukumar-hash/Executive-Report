@@ -118,7 +118,7 @@ function buildHTML(m, h, delivery, support, charts) {
   </tr></table></td></tr>
   <tr><td style="padding:0 0 14px 0;"><table width="100%" cellpadding="0" cellspacing="0" style="background:${INK}; border-radius:16px;"><tr><td style="padding:22px 20px;">
     <div style="font-family:${sans}; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:${GOLD}; font-weight:bold; padding-bottom:14px;">Company Headline &nbsp;·&nbsp; ARR in USD</div>
-    <table width="100%" cellpadding="0" cellspacing="0"><tr>${kpi('LARR',fm(m.larr.total))}${kpi('CARR',fm(m.carr.total))}${kpi('GRR',h.company.grr.toFixed(1)+'%')}${kpi('NRR',h.company.nrr.toFixed(1)+'%')}</tr></table>
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>${kpi('LARR',fm(m.larr.total))}${kpi('CARR',fm(m.carr.total))}${kpi('GRR · YR',h.company.grr.toFixed(1)+'%')}${kpi('NRR · YR',h.company.nrr.toFixed(1)+'%')}</tr></table>
   </td></tr></table></td></tr>
   ${rows}
   <tr><td style="padding:10px 6px; font-family:${sans}; font-size:11px; color:${MUT}; text-align:center;">
