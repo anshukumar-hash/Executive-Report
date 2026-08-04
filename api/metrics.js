@@ -42,12 +42,12 @@
  *    "Sales Drop" and "Churn / Drop-off Date" is in the current month; sum ARR.
  */
 
-// Last month-end ARR book — rolled forward manually each month (same
-// convention as the CSM dashboard's EM_LARR_BASE / LARR Walk).
-// AUG start = JUL month-end from the CSM LARR Walk:
-//   8,187,394 (Jul start) + 849,679 (Jul expansion) − 312,851 (Jul loss) = 8,724,222.
+// Last month-end ARR book — rolled forward manually each month.
+// AUG start = JUL start − JUL churn ONLY (per user, 2026-08; additions excluded):
+//   8,187,394 − (294,255 D2D churn + 6,700 D2D contraction + 18,069 reseller
+//   = 319,024 total July churn) = 7,868,370.
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
-const LARR_BASE = 8724222;
+const LARR_BASE = 7868370;
 
 // PWS bucket base — rolled forward manually. PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
