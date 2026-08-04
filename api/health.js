@@ -153,8 +153,53 @@ function usageTrendRag(series) {
   return trend === 'Rising' ? 'Green' : trend === 'Declining' ? 'Red' : 'Amber';
 }
 
+// RoI Factor → RAG. Matches the CSM dashboard exactly: >=3 Green, >=1.5 Amber,
+// else Red; 0/missing → NA (excluded from the aggregate).
 const roiMtdRag = v =>
-  (v == null || v === 0 || isNaN(v)) ? 'NA' : v >= 4 ? 'Green' : v >= 2 ? 'Amber' : 'Red';
+  (v == null || v === 0 || isNaN(v)) ? 'NA' : v >= 3 ? 'Green' : v >= 1.5 ? 'Amber' : 'Red';
+
+// Vini Overall RAG — a faithful port of the CSM dashboard's viniOverallRag:
+// TWO signals only, RoI (weight 7) + Communication (weight 3); payment/ticket/
+// report are NOT factors for Vini. Each signal G=100/A=60/R=20; NA excluded.
+// Override: an Amber RoI with no comms signal degrades to Red. All-NA → NA.
+function viniOverallRag(roiMtd, commRag) {
+  const roiRag = roiMtdRag(roiMtd);
+  if (roiRag === 'Amber' && (commRag == null || commRag === 'NA')) return 'Red';
+  const W = { roi: 7, comm: 3 };
+  const parts = { roi: roiRag, comm: commRag };
+  let sum = 0, wu = 0;
+  for (const k in W) { const v = _ragValue(parts[k]); if (v == null) continue; sum += v * W[k]; wu += W[k]; }
+  if (!wu) return 'NA';
+  const s = sum / wu;
+  return s >= 80 ? 'Green' : s >= 60 ? 'Amber' : 'Red';
+}
+
+// Communication RAG for a Vini agent — CSM's count-weighted CSAT scoreRag over a
+// date window. Counts Green/Amber/Red readings (NA excluded), scores
+// G=100/A=60/R=20, thresholds 80 Green / 60 Amber. eid first, then name key.
+function makeViniComm(byEid, byName) {
+  const collect = (arr, from, to) => {
+    const out = {};
+    for (const r of (arr || [])) {
+      const di = r.date_iso;
+      if (di && di >= from && di <= to) {
+        const k = r.rag;
+        if (k && k !== 'NA') out[k] = (out[k] || 0) + 1;
+      }
+    }
+    return out;
+  };
+  const scoreVal = c => {
+    const g = c.Green || 0, a = c.Amber || 0, r = c.Red || 0, t = g + a + r;
+    return t === 0 ? null : (g * 100 + a * 60 + r * 20) / t;
+  };
+  return (eid, en, from, to) => {
+    let c = eid ? collect(byEid[eid], from, to) : {};
+    if (!Object.keys(c).length) c = en ? collect(byName[normCsatName(en)], from, to) : {};
+    const s = scoreVal(c);
+    return s == null ? 'NA' : s >= 80 ? 'Green' : s >= 60 ? 'Amber' : 'Red';
+  };
+}
 
 // ─── Data acquisition ────────────────────────────────────────────────────────
 async function fetchDashboardData() {
@@ -169,37 +214,9 @@ async function fetchDashboardData() {
   return JSON.parse(html.slice(from, end).replace(/;\s*$/, ''));
 }
 
-// Vini agent universe — mirrors the CSM dashboard, which now sources agents
-// from Metabase card 12755 ("grain"): unique (team_id, agent_type), Live-only,
-// latest day. Returns { grain:[{rid,agent,eid,en,arr,seg}], apptMtd:{ 'rid|agent': $value } }.
-const VINI_GRAIN_CARD_ID = Number(process.env.METABASE_VINI_CARD_ID || 12755);
-async function fetchViniGrain(ym) {
-  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
-  const key = process.env.METABASE_API_KEY;
-  if (!base || !key) return null;
-  const res = await fetch(`${base}/api/card/${VINI_GRAIN_CARD_ID}/query/json`, {
-    method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`vini card ${VINI_GRAIN_CARD_ID} -> HTTP ${res.status}`);
-  const rows = await res.json();
-  if (!Array.isArray(rows)) return null;
-  const latest = {}, apptMtd = {};
-  for (const x of rows) {
-    const rid = x.team_id, agent = x.agent_type;
-    if (!rid || !agent) continue;
-    const k = rid + '|' + agent;
-    if (!latest[k] || x.day > latest[k].day) latest[k] = x;
-    // MTD appointment value = Σ(appointments this month) × $-per-appt for the type.
-    if (String(x.day || '').slice(0, 7) === ym) {
-      apptMtd[k] = (apptMtd[k] || 0) + (Number(x.appointments) || 0) * apptValuePerAppt(agent);
-    }
-  }
-  const grain = Object.values(latest)
-    .filter(x => String(x.rooftop_stage || '').toLowerCase() === 'live')
-    .map(x => ({ rid: x.team_id, agent: x.agent_type, eid: x.enterprise_id,
-                 en: x.enterprise_name, arr: Number(x.arr) || 0, seg: x.customer_segment }));
-  return { grain, apptMtd };
-}
+// (Vini agents no longer use Metabase — the universe + RoI + payment all come
+// from the CSM dashboard's embedded snapshot: vini_stage + v_rows + csat. See
+// the handler's VINI section.)
 
 async function fetchReportTracking(today) {
   // Last 7 days of roi_digest_runs → rid -> { 'YYYY-MM-DD': 'sent'|... }
@@ -232,14 +249,13 @@ module.exports = async function handler(req, res) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const range = mtdRange(today);
 
-    const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const [D, reportTracking, viniGrain] = await Promise.all([
+    const [D, reportTracking] = await Promise.all([
       fetchDashboardData(),
       fetchReportTracking(today),
-      fetchViniGrain(ym).catch(() => null),
     ]);
 
     const csatRag = makeCsatRag(D.csat_all_by_eid || {}, D.csat_all_by_name || {}, range);
+    const viniComm = makeViniComm(D.csat_all_by_eid || {}, D.csat_all_by_name || {});
     const STUDIO_TIX = D.studio_tix || {};
     const VINI_TIX = D.vini_tix || {};
 
@@ -268,39 +284,38 @@ module.exports = async function handler(req, res) {
       else studio.na++;
     }
 
-    // ── VINI agents — universe from card 12755 grain (Live-only), same as CSM.
-    // Payment (ps) is joined from the Payment snapshot (vs_rows) by (rid, agent);
-    // MTD RoI comes from card-12755 appointment value ÷ prorated MTD MRR (arr/12).
-    // Payment score joined from the Payment master (D.vini_stage objects) by
-    // (rid, agent) — same source the CSM dashboard's card mode uses.
+    // ── VINI agents — sourced ENTIRELY from the CSM dashboard snapshot (no
+    // Metabase). Universe = vini_stage (one row per rooftop×agent), Live-only.
+    // RoI Factor = (appointments × $-per-appt, folded from v_rows over a trailing
+    // 30-day window) ÷ MRR. Communication = count-weighted CSAT over the same
+    // window. Overall RAG = viniOverallRag (RoI weight 7 + Comm weight 3), a
+    // faithful port of the CSM dashboard. A trailing-30-day window (anchored at
+    // the latest day in v_rows) is used instead of calendar MTD so the tiles stay
+    // populated even before the current month's data has synced.
     const VINI_STAGE = Array.isArray(D.vini_stage) ? D.vini_stage
       : (D.vini_stage && Array.isArray(D.vini_stage.value) ? D.vini_stage.value : []);
-    const psByKey = {};
-    for (const s of VINI_STAGE) {
-      if (!s.rid) continue;
-      const k = s.rid + '|' + (s.agent || '');
-      if (psByKey[k] == null && s.ps) psByKey[k] = s.ps;
-    }
-    const grain = (viniGrain && viniGrain.grain) || [];
-    const apptMtd = (viniGrain && viniGrain.apptMtd) || {};
-    const byKey = {};
-    for (const g of grain) {
-      const key = g.rid + '|' + g.agent;
-      byKey[key] = {
-        rid: g.rid, eid: g.eid, en: g.en, agent: g.agent,
-        arr: g.arr, mrr: g.arr / 12, ps: psByKey[key],
-        apptValue_mtd: apptMtd[key] || 0,
-      };
-    }
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const mtdFactor = today.getDate() / daysInMonth;
+    const V_COL = {}; (D.v_schema || []).forEach((k, i) => V_COL[k] = i);
+    const vRows = D.v_rows || [];
 
-    const yest = new Date(today); yest.setDate(yest.getDate() - 1);
-    const yKey = ymd(yest);
-    const reportRag = rid => {
-      const st = (reportTracking[rid] || {})[yKey];
-      return !st ? 'NA' : (st === 'sent' ? 'Green' : 'Red');
-    };
+    // Trailing-30-day window anchored at the latest day present in v_rows.
+    let maxDay = '';
+    for (const r of vRows) { const dd = r[V_COL.day]; if (dd && dd > maxDay) maxDay = dd; }
+    let winTo = maxDay || range.to, winFrom = range.from;
+    if (maxDay) {
+      const md = new Date(maxDay + 'T00:00:00'); md.setDate(md.getDate() - 29);
+      winFrom = ymd(md);
+    }
+
+    // Appointment value per (rid|agent) over the window: Σ appts × $-per-appt.
+    const apptWin = {};
+    for (const r of vRows) {
+      const dd = r[V_COL.day];
+      if (!dd || dd < winFrom || dd > winTo) continue;
+      const rid = r[V_COL.rid], agent = r[V_COL.agent];
+      if (!rid || !agent) continue;
+      const k = rid + '|' + agent;
+      apptWin[k] = (apptWin[k] || 0) + (Number(r[V_COL.a]) || 0) * apptValuePerAppt(agent);
+    }
 
     const mkBucket = () => ({ green: 0, amber: 0, red: 0, na: 0, agents: 0, totalArr: 0,
                               arr: { green: 0, amber: 0, red: 0 } });
@@ -309,27 +324,23 @@ module.exports = async function handler(req, res) {
           serviceIB = mkBucket(), serviceOB = mkBucket(), other = mkBucket();
     const pick = agent => {
       const a = String(agent || '').toLowerCase();
-      const inbound = a.includes('inbound');
-      const outbound = a.includes('outbound');
+      const inbound = a.includes('inbound'), outbound = a.includes('outbound');
       if (a.includes('sales')) return inbound ? salesIB : outbound ? salesOB : other;
       if (a.includes('service')) return inbound ? serviceIB : outbound ? serviceOB : other;
       return other;
     };
-    for (const a of Object.values(byKey)) {
-      const roiMtd = (a.mrr * mtdFactor) > 0 ? a.apptValue_mtd / (a.mrr * mtdFactor) : 0;
-      const g = blend({
-        usage: roiMtdRag(roiMtd),
-        payment: a.ps,
-        comm: csatRag(a.eid, a.en),
-        ticket: enterpriseTicketRag(a.eid, VINI_TIX, range),
-        reportSent: reportRag(a.rid),
-      }, { usage: 3, payment: 3, comm: 2, ticket: 2, reportSent: 2 });
-      const b = pick(a.agent);
-      b.agents++; b.totalArr += a.arr;
+    for (const s of VINI_STAGE) {
+      if (!s.rid || String(s.stage || '').toLowerCase() !== 'live') continue;
+      const mrr = Number(s.mrr) || 0, arr = Number(s.arr) || 0;
+      const apptValue = apptWin[s.rid + '|' + (s.agent || '')] || 0;
+      const roi = mrr > 0 ? apptValue / mrr : 0;   // 30-day window ≈ one month → no MRR proration
+      const g = viniOverallRag(roi, viniComm(s.eid, s.en, winFrom, winTo));
+      const b = pick(s.agent);
+      b.agents++; b.totalArr += arr;
       // NA excluded from Green/Amber/Red counts — matches the CSM dashboard.
-      if (g === 'Green') { b.green++; b.arr.green += a.arr; }
-      else if (g === 'Amber') { b.amber++; b.arr.amber += a.arr; }
-      else if (g === 'Red') { b.red++; b.arr.red += a.arr; }
+      if (g === 'Green') { b.green++; b.arr.green += arr; }
+      else if (g === 'Amber') { b.amber++; b.arr.amber += arr; }
+      else if (g === 'Red') { b.red++; b.arr.red += arr; }
       else b.na++;
     }
 
