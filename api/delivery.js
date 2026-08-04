@@ -1,147 +1,63 @@
 /**
  * Vercel Serverless Function — /api/delivery
  *
- * Delivery · Operations pendency metrics, computed live from Metabase's dataset
- * API (ClickHouse). Split into its own endpoint so the heavy (~8s) ClickHouse
- * queries don't block the main /api/metrics dashboard load — the frontend
- * fetches this in parallel and fills the Delivery tiles when it resolves.
+ * Delivery · Operations pendency metrics. Sourced from Metabase PUBLIC questions
+ * (shared read-only links) — no API key required, so these keep working even if
+ * METABASE_API_KEY expires. Split into its own endpoint so the frontend can fill
+ * the Delivery tiles in parallel with the main /api/metrics load.
  *
- * Config via env (set in .env.local locally, and Vercel → Settings → Env Vars;
- * for `vercel dev` they must also exist in the Development environment):
- *   METABASE_BASE_URL, METABASE_API_KEY, METABASE_DATABASE_ID (default 363).
+ * Public questions (override the UUIDs via env if the links are ever re-shared):
+ *   Image pendency → total_pendency_count (scalar)
+ *   Video pendency → COUNT(video_id)      (scalar)
+ *   360   pendency → SUM(Pending)          (per-enterprise rows)
  *
- * Each metric returns null if unconfigured or the query fails — the dashboard
- * keeps "—". Video and 360 pendency queries are placeholders until provided.
+ * Each metric returns null if the link fails — the dashboard keeps "—".
  */
 
-// Count of QC-on, non-360 SKUs (Live/Onboarding Automobile enterprises, test &
-// excluded IDs filtered out) created in the last 30 days, pending QC > 6 hours.
-const IMAGE_PENDENCY_SQL = `
-SELECT
-    COUNT(sku_id) AS total_pendency_count
-FROM
-(
-    SELECT
-        sk.sku_id,
-        sk.crm_status,
-        sk.is_360,
-        CASE
-            WHEN ed.quality_check = 1
-             AND ed.enterprise_qc_priority = 0
-            THEN 1
-            ELSE 0
-        END AS is_qc_on,
-        dateDiff('hour', sk.created_on, now()) AS pending_duration_hours
-    FROM eventila.ai_sku sk
-    LEFT JOIN eventila.enterprise_team_details etd
-        ON sk.team_id = etd.team_id
-    LEFT JOIN eventila.enterprise_details ed
-        ON etd.enterprise_id = ed.enterprise_id
-    LEFT JOIN PartnerSystem.outputworkflows o
-        ON o.teamId = etd.team_id AND o.enterpriseId = etd.enterprise_id AND o.isActive = 1
-    LEFT JOIN PartnerSystem.inputworkflows i
-        ON i.teamId = etd.team_id AND i.enterpriseId = etd.enterprise_id AND i.isActive = 1 AND i.createDraft = 'true'
-    LEFT JOIN inventory.dealerVinMapping dvm
-        ON dvm.teamId = etd.team_id AND dvm.enterpriseId = etd.enterprise_id AND dvm.dealerVinId = sk.dealerVinId
-    LEFT JOIN media_management.medias m
-        ON m.dealerVinId = sk.dealerVinId AND m.mediaId = sk.mediaId
-    LEFT JOIN PartnerSystem.rooftopinventories r
-        ON r.dealerVinId = m.dealerVinId
-    WHERE sk.created_on >= today() - INTERVAL 30 DAY
-      AND sk.is_hidden = 0
-      AND ed.is_test_account = 0
-      AND etd.is_test_account = 0
-      AND ed.is_active = 1
-      AND ed.stage IN ('Live', 'Onboarding')
-      AND ed.category = 'Automobile'
-      AND sk.crm_status != 'qc_done'
-      AND ed.enterprise_id NOT IN
-      (
-        '0b4bc56b1','00d2aafe9','197d146c4','18d200080','1O103VCUW',
-        '28733e36c','2LA80M7WO','8e2f0d75a','293e1a285','TaD1VC1Ko',
-        '3471c086e','39b5a5268','af5e033aa','c95e31793','caae51a38',
-        'L3X0W7YW6','74e1ee1ab','4J8975Z1G','4bc9d1ce6','7KIAEAQQA'
-      )
-    LIMIT 1 BY sk.sku_id
-    SETTINGS
-        join_algorithm = 'grace_hash',
-        max_bytes_in_join = 10737418240,
-        max_bytes_before_external_sort = 10737418240,
-        max_threads = 4
-)
-WHERE is_qc_on = 1
-  AND toString(is_360) IN ('0', 'false', 'FALSE')
-  AND pending_duration_hours > 6`;
+const MB_BASE = (process.env.METABASE_BASE_URL || 'https://metabase.spyne.ai').replace(/\/$/, '');
 
-// Video pendency = Metabase card 12800 (single scalar, COUNT(video_id)).
-// 360 pendency   = Metabase card 12801 (per-enterprise rows; total = SUM(Pending)).
-const VIDEO_CARD_ID = Number(process.env.METABASE_VIDEO_CARD_ID || 12800);
-const THREESIXTY_CARD_ID = Number(process.env.METABASE_360_CARD_ID || 12801);
+// Metabase public question UUIDs (from the shared /public/question/<uuid> links).
+const IMAGE_PUBLIC_UUID = process.env.METABASE_IMAGE_PUBLIC_UUID || '46a291e5-09b9-4603-9d96-898db60100c8';
+const VIDEO_PUBLIC_UUID = process.env.METABASE_VIDEO_PUBLIC_UUID || '58440586-6c7a-464e-9a17-b0c75ad2b60b';
+const THREESIXTY_PUBLIC_UUID = process.env.METABASE_360_PUBLIC_UUID || 'a8a676db-6019-4f99-b129-5cecde4317fd';
 
-// Fetch a saved card's result rows (array of objects) via the card query API.
-async function metabaseCardRows(id) {
-  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
-  const key = process.env.METABASE_API_KEY;
-  if (!base || !key || !id) return null;
-  const res = await fetch(`${base}/api/card/${id}/query/json`, {
-    method: 'POST',
-    headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`metabase card ${id} -> HTTP ${res.status}`);
+// Fetch a public card's result rows (array of {column: value} objects). No auth.
+async function publicCardRows(uuid) {
+  if (!MB_BASE || !uuid) return null;
+  const res = await fetch(`${MB_BASE}/api/public/card/${uuid}/query/json`);
+  if (!res.ok) throw new Error(`metabase public card ${uuid} -> HTTP ${res.status}`);
   const rows = await res.json();
   return Array.isArray(rows) ? rows : null;
 }
-// First numeric cell of the first row (for single-value cards like Video).
-async function cardScalar(id) {
-  const rows = await metabaseCardRows(id);
+// First numeric cell of the first row (single-value cards: image, video).
+async function publicScalar(uuid) {
+  const rows = await publicCardRows(uuid);
   if (!rows || !rows.length) return null;
   const v = Number(Object.values(rows[0])[0]);
   return isNaN(v) ? null : v;
 }
-// Sum a numeric column across all rows (for the 360 per-enterprise breakdown).
-async function cardColumnSum(id, col) {
-  const rows = await metabaseCardRows(id);
+// Sum a numeric column across all rows (360 per-enterprise breakdown).
+async function publicColumnSum(uuid, col) {
+  const rows = await publicCardRows(uuid);
   if (!rows || !rows.length) return null;
   return rows.reduce((s, r) => s + (Number(r[col]) || 0), 0);
-}
-
-// Runs one native SQL query against Metabase's dataset API and returns the first
-// scalar cell as a number (null on any failure).
-async function metabaseScalar(sql) {
-  const base = (process.env.METABASE_BASE_URL || '').replace(/\/$/, '');
-  const key = process.env.METABASE_API_KEY;
-  const dbId = Number(process.env.METABASE_DATABASE_ID || 363);
-  if (!base || !key || !dbId || !sql) return null;
-  // NOTE: .trim() is required — a leading newline makes Metabase's ClickHouse
-  // driver fail with "Select statement did not produce a ResultSet".
-  const res = await fetch(`${base}/api/dataset`, {
-    method: 'POST',
-    headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ database: dbId, type: 'native', native: { query: sql.trim() } }),
-  });
-  if (!res.ok) throw new Error(`metabase dataset -> HTTP ${res.status}`);
-  const out = await res.json();
-  const rows = out && out.data && out.data.rows;
-  if (!Array.isArray(rows) || !rows.length || !Array.isArray(rows[0])) return null;
-  const n = Number(rows[0][0]);
-  return isNaN(n) ? null : n;
 }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   try {
     const [imagePendency, videoPendency, threeSixtyPendency] = await Promise.all([
-      metabaseScalar(IMAGE_PENDENCY_SQL).catch(() => null),
-      cardScalar(VIDEO_CARD_ID).catch(() => null),                 // card 12800
-      cardColumnSum(THREESIXTY_CARD_ID, 'Pending').catch(() => null), // card 12801
+      publicScalar(IMAGE_PUBLIC_UUID).catch(() => null),                    // total_pendency_count
+      publicScalar(VIDEO_PUBLIC_UUID).catch(() => null),                    // COUNT(video_id)
+      publicColumnSum(THREESIXTY_PUBLIC_UUID, 'Pending').catch(() => null), // SUM(Pending)
     ]);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
     return res.status(200).json({
       generatedAt: new Date().toISOString(),
-      imagePendency,       // null if Metabase unreachable/unconfigured
-      videoPendency,       // null until the query is added
-      threeSixtyPendency,  // null until the query is added
+      imagePendency,       // null if the public link is unreachable
+      videoPendency,
+      threeSixtyPendency,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
