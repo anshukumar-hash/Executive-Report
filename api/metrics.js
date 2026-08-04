@@ -43,8 +43,11 @@
  */
 
 // Last month-end ARR book — rolled forward manually each month (same
-// convention as the CSM dashboard's EM_LARR_BASE).
-const LARR_BASE = 8187394;
+// convention as the CSM dashboard's EM_LARR_BASE / LARR Walk).
+// AUG start = JUL month-end from the CSM LARR Walk:
+//   8,187,394 (Jul start) + 849,679 (Jul expansion) − 312,851 (Jul loss) = 8,724,222.
+// Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
+const LARR_BASE = 8724222;
 
 // PWS bucket base — rolled forward manually. PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
