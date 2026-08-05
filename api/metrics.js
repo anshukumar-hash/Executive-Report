@@ -29,10 +29,11 @@
  *    "Agreement month" == current month as MMM'yy (e.g. Jul'26).
  *    Sum "ARR Potential ($)".
  *
- * 6. PROJECTED NEW LIVE — New Live MTD + Confirmed ARR, where Confirmed ARR =
- *    sum ARR over the 3 OB tabs where "Projected Live Date" is in the current
- *    month, Stage != "Live", Stage has no "drop"/"churn", and
- *    "Current Month Confirmations" == "Confirmed".
+ * 6. PROJECTED NEW LIVE — New Live MTD (incl. reseller/partner) + Confirmed ARR,
+ *    where Confirmed ARR = sum ARR over the 3 OB tabs where "Projected Live Date"
+ *    is in the current month, Stage != "Live", Stage has no "drop"/"churn", and
+ *    "Current Month Confirmations" is "Confirmed" OR "Upside - Solvable"
+ *    (NOT "Upside - Blocked").
  *
  * 7. PENDING TICKETS — dilipticket.vercel.app/api/tickets (Freshdesk proxy).
  *    is_pending == true, split by "Product (Studio/Vini)" (Studio* vs *Vini*).
@@ -242,7 +243,9 @@ function confirmedARR(rows, tab, ym) {
     const stage = (r[4] || '').trim().toLowerCase();
     if (!stage || stage === 'live' || stage.includes('drop') || stage.includes('churn')) continue;
     if (toYM(r[tab.pldCol]) !== ym) continue;
-    if ((r[tab.confCol] || '').trim().toLowerCase() !== 'confirmed') continue;
+    // Count "Confirmed" AND "Upside - Solvable" (NOT "Upside - Blocked").
+    const conf = (r[tab.confCol] || '').trim().toLowerCase();
+    if (conf !== 'confirmed' && !(conf.includes('upside') && conf.includes('solv'))) continue;
     arr += money(r[2]);
     rooftops++;
   }
