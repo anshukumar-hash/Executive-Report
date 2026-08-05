@@ -51,22 +51,28 @@
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
 const LARR_BASE = 8734719;
 
-// PWS is now taken DIRECTLY from the PWS tracker sheet — the ARR total in cell
-// Y2 of the "Final Sheet" tab (overall PWS ARR = Vini + Studio). Fetched live via
-// the gviz CSV endpoint (sheet name + range), no gid needed.
+// PWS is taken DIRECTLY from the PWS tracker sheet — cell Y1 of the tab
+// gid=1138324292 (overall PWS ARR). Fetched via gviz with headers=0 so row 1 is
+// returned as data (not treated as a column header) and range=Y1 keeps it to the
+// single cell. CACHED once per UTC day: the sheet is a daily-updated book, so we
+// hit it at most once a day (per warm instance); stale value is served on error.
 const PWS_SHEET_ID = '16nRHqa2ym1d05WddHZR0KfnSajzkZ848J2lEu0Hu4xc';
-const PWS_TAB = 'Final Sheet';
-const PWS_CELL = 'Y2';
+const PWS_GID = '1138324292';
+const PWS_CELL = 'Y1';
+let _pwsCache = { day: null, value: null };
 async function fetchPwsCell() {
+  const today = new Date().toISOString().slice(0, 10);   // UTC date key
+  if (_pwsCache.day === today && _pwsCache.value != null) return _pwsCache.value;
   try {
     const url = `https://docs.google.com/spreadsheets/d/${PWS_SHEET_ID}/gviz/tq`
-      + `?tqx=out:csv&sheet=${encodeURIComponent(PWS_TAB)}&range=${PWS_CELL}`;
+      + `?tqx=out:csv&gid=${PWS_GID}&headers=0&range=${PWS_CELL}`;
     const res = await fetch(url);
-    if (!res.ok) return null;
-    const raw = (await res.text()).trim().replace(/^"|"$/g, '');
+    if (!res.ok) return _pwsCache.value;                 // serve last good on failure
+    const raw = (await res.text()).trim().replace(/^"+|"+$/g, '');
     const n = money(raw);
-    return isFinite(n) && n > 0 ? n : null;
-  } catch { return null; }
+    if (isFinite(n) && n > 0) { _pwsCache = { day: today, value: n }; return n; }
+    return _pwsCache.value;
+  } catch { return _pwsCache.value; }
 }
 
 // Legacy PWS fallback base (only used if the sheet fetch fails):
@@ -414,7 +420,7 @@ module.exports = async function handler(req, res) {
       pws: {
         // Primary: ARR from the PWS tracker "Final Sheet"!Y2. Fallback to the
         // legacy base + New Sales − New Ob only if that fetch fails.
-        source: pwsCell != null ? 'sheet:Final Sheet!Y2' : 'fallback:formula',
+        source: pwsCell != null ? 'sheet:gid1138324292!Y1' : 'fallback:formula',
         base: PWS_BASE,
         newSales: newSalesMtd.arr,
         newOb: newObTotal,
