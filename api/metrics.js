@@ -47,11 +47,12 @@
 // AUG start = JUL month-end LARR from the corrected July ARR walk (user, 2026-08):
 //   Jul start        8,187,394
 //   + Jul expansion   +866,876   (D2D 650,048 · Reseller 216,828)
-//   − Jul revenue loss −332,609  (rechecked from live sheets — Studio 267,853
-//                                 [D2D 249,385 + reseller 18,468] · Vini 64,756)
-//   = Jul month-end  8,721,661   ← Aug starting LARR
+//   − Jul revenue loss −339,943  (rechecked from live sheets — Studio 275,187
+//                                 [D2D 249,385 + reseller 18,468 + PAYG 7,334]
+//                                 · Vini 64,756)
+//   = Jul month-end  8,714,327   ← Aug starting LARR
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
-const LARR_BASE = 8721661;
+const LARR_BASE = 8714327;
 
 // PWS is taken DIRECTLY from the PWS tracker sheet — cell Y1 of the tab
 // gid=1138324292 (overall PWS ARR). Fetched via gviz with headers=0 so row 1 is
@@ -83,13 +84,13 @@ const PWS_BASE = 3806316;
 
 // CARR base — rolled forward manually each month (per user, 2026-08):
 //   Last month CARR   14,188,934
-//   − last-month (Jul) churn   −332,609   (rechecked from live sheets)
+//   − last-month (Jul) churn   −339,943   (rechecked, incl. PAYG 7,334 Studio)
 //   + New Sales (Jul)          +963,392
 //   − Sales drop                −36,000
-//   = CARR base        14,783,717   ← Aug start
+//   = CARR base        14,776,383   ← Aug start
 // Running CARR = base − this-month (Aug) churn (CS + partner). No New Sales /
 // OB-churn terms here anymore — July's are already baked into the base.
-const CARR_BASE = 14783717;
+const CARR_BASE = 14776383;
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
