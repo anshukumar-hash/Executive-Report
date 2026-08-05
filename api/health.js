@@ -358,9 +358,13 @@ module.exports = async function handler(req, res) {
       { d2dStudio: 0, d2dVini: 0, partnerStudio: 0, partnerVini: 0 },
       D.revenue_loss || {}
     );
+    // Reseller/partner is folded into Studio (per user, 2026-08): reseller churn
+    // is already in the loss below (RL.partnerStudio), and reseller NEW ARR
+    // (D.reseller.newArr) counts as Studio EXPANSION — so add it to `exp`.
+    const resellerExp = Number((D.reseller && D.reseller.newArr) || 0);
     const loss = (Number(RL.d2dStudio) || 0) + (Number(RL.d2dVini) || 0)
                + (Number(RL.partnerStudio) || 0) + (Number(RL.partnerVini) || 0);
-    const exp = Number(EXP.arr) || 0;
+    const exp = (Number(EXP.arr) || 0) + resellerExp;
     const grrPct = GRR_BASE > 0 ? Math.max(0, Math.pow(1 - loss / GRR_BASE, 12) * 100) : null;
     const nrrPct = NRR_BASE > 0 ? Math.pow(1 + (exp - loss) / NRR_BASE, 12) * 100 : null;
 
