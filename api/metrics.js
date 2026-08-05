@@ -43,11 +43,13 @@
  */
 
 // Last month-end ARR book — rolled forward manually each month.
-// AUG start = JUL start − JUL churn ONLY (per user, 2026-08; additions excluded):
-//   8,187,394 − (294,255 D2D churn + 6,700 D2D contraction + 18,069 reseller
-//   = 319,024 total July churn) = 7,868,370.
+// AUG start = JUL month-end LARR from the corrected July ARR walk (user, 2026-08):
+//   Jul start        8,187,394
+//   + Jul expansion   +866,876   (D2D 650,048 · Reseller 216,828)
+//   − Jul revenue loss −319,551  (Studio 236,327 · Vini 64,756 · Reseller 18,468)
+//   = Jul month-end  8,734,719   ← Aug starting LARR
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
-const LARR_BASE = 7868370;
+const LARR_BASE = 8734719;
 
 // PWS bucket base — rolled forward manually. PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
