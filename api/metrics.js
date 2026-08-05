@@ -80,9 +80,15 @@ async function fetchPwsCell() {
 //   PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
 
-// CARR base — rolled forward manually.
-// CARR = base + New Sales MTD − CS churn − Onboarding churn.
-const CARR_BASE = 6001531 + 8187394; // 14,188,925
+// CARR base — rolled forward manually each month (per user, 2026-08):
+//   Last month CARR   14,188,934
+//   − last-month (Jul) churn   −319,551
+//   + New Sales (Jul)          +963,392
+//   − Sales drop                −36,000
+//   = CARR base        14,796,775   ← Aug start
+// Running CARR = base − this-month (Aug) churn (CS + partner). No New Sales /
+// OB-churn terms here anymore — July's are already baked into the base.
+const CARR_BASE = 14796775;
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
@@ -361,9 +367,9 @@ module.exports = async function handler(req, res) {
     const obcApac = obChurn(apacRows, TABS.apacEmea, ym);
     const obChurnTotal = obcVini.arr + obcAmer.arr + obcApac.arr;
 
-    // CARR = base + New Sales MTD − CS churn − Onboarding churn.
-    // CS churn here mirrors the CS row's "Churned Revenue" (CS Tracker + partner).
-    const carrTotal = CARR_BASE + newSalesMtd.arr - totalChurnARR - obChurnTotal;
+    // CARR = base − this-month churn (CS Tracker + partner). July's New Sales,
+    // churn and sales-drop are already baked into CARR_BASE (see its comment).
+    const carrTotal = CARR_BASE - totalChurnARR;
 
     const payload = {
       month: ym,
