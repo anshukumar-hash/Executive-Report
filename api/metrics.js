@@ -85,7 +85,7 @@ const CARR_BASE = 6001531 + 8187394; // 14,188,925
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
-const NEW_LIVE_TARGET = 1800000;
+const NEW_LIVE_TARGET = 1500000;
 
 const OB_SHEET = '1ioRrooOvDSBxc7gjC2XUGjqHH_YBze_2HryOF8JWqL0';
 const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
