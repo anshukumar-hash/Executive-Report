@@ -51,7 +51,26 @@
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
 const LARR_BASE = 8734719;
 
-// PWS bucket base — rolled forward manually. PWS = base + New Sales MTD − New Ob MTD.
+// PWS is now taken DIRECTLY from the PWS tracker sheet — the ARR total in cell
+// Y2 of the "Final Sheet" tab (overall PWS ARR = Vini + Studio). Fetched live via
+// the gviz CSV endpoint (sheet name + range), no gid needed.
+const PWS_SHEET_ID = '16nRHqa2ym1d05WddHZR0KfnSajzkZ848J2lEu0Hu4xc';
+const PWS_TAB = 'Final Sheet';
+const PWS_CELL = 'Y2';
+async function fetchPwsCell() {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${PWS_SHEET_ID}/gviz/tq`
+      + `?tqx=out:csv&sheet=${encodeURIComponent(PWS_TAB)}&range=${PWS_CELL}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const raw = (await res.text()).trim().replace(/^"|"$/g, '');
+    const n = money(raw);
+    return isFinite(n) && n > 0 ? n : null;
+  } catch { return null; }
+}
+
+// Legacy PWS fallback base (only used if the sheet fetch fails):
+//   PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
 
 // CARR base — rolled forward manually.
@@ -282,7 +301,7 @@ module.exports = async function handler(req, res) {
   const mmmYY = `${mmm[0].toUpperCase()}${mmm.slice(1)}'${String(now.getUTCFullYear()).slice(2)}`;
 
   try {
-    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows] =
+    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows, pwsCell] =
       await Promise.all([
         fetchCSV(CHURN_SHEET, CHURN_GID),
         fetchCSV(OB_SHEET, TABS.vini.gid),
@@ -290,6 +309,7 @@ module.exports = async function handler(req, res) {
         fetchCSV(OB_SHEET, TABS.apacEmea.gid),
         fetchCSV(PARTNER_SHEET, PARTNER_GID),
         fetchCSV(OB_SHEET, NEWSALES_GID),
+        fetchPwsCell(),
       ]);
 
     // CS churn + partner churn (annualized)
@@ -392,10 +412,13 @@ module.exports = async function handler(req, res) {
         rooftops: noVini.rooftops + noAmer.rooftops,
       },
       pws: {
+        // Primary: ARR from the PWS tracker "Final Sheet"!Y2. Fallback to the
+        // legacy base + New Sales − New Ob only if that fetch fails.
+        source: pwsCell != null ? 'sheet:Final Sheet!Y2' : 'fallback:formula',
         base: PWS_BASE,
         newSales: newSalesMtd.arr,
         newOb: newObTotal,
-        total: PWS_BASE + newSalesMtd.arr - newObTotal,
+        total: pwsCell != null ? pwsCell : (PWS_BASE + newSalesMtd.arr - newObTotal),
       },
       // Pending tickets moved to /api/support, delivery pendency to /api/delivery
       // so their slow sources don't block this core dashboard load.
