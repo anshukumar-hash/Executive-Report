@@ -44,15 +44,15 @@
  */
 
 // Last month-end ARR book — rolled forward manually each month.
-// AUG start = JUL month-end LARR from the corrected July ARR walk (user, 2026-08):
-//   Jul start        8,187,394
-//   + Jul expansion   +866,876   (D2D 650,048 · Reseller 216,828)
-//   − Jul revenue loss −339,943  (rechecked from live sheets — Studio 275,187
-//                                 [D2D 249,385 + reseller 18,468 + PAYG 7,334]
-//                                 · Vini 64,756)
-//   = Jul month-end  8,714,327   ← Aug starting LARR
+// AUG start = JUL month-end LARR from the July ARR walk (user, 2026-08):
+//   Jul start          8,187,394   (Studio 6,749,214 · Vini 1,438,180)
+//   + Jul expansion    +720,888    D2D 501,960 (S 130,000 · V 371,960)
+//                                  + Reseller 218,928 (S 152,316 · V 66,612)
+//   − Jul revenue loss −339,943    Studio 275,187 (D2D 249,385 + reseller 18,468
+//                                  + PAYG 7,334) · Vini 64,756
+//   = Jul month-end    8,568,339   ← Aug starting LARR (Studio 6,756,343 · Vini 1,811,996)
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
-const LARR_BASE = 8714327;
+const LARR_BASE = 8568339;
 
 // PWS from the PWS tracker sheet (gid=1138324292): column Y "Current PWS" summed
 // from row 4 down, split by the Product column (E) into Studio / Vini (overall =
@@ -100,10 +100,10 @@ const PWS_BASE = 3806316;
 const CARR_BASE = 14776383;
 
 // Product-level opening bases for the Studio/Vini tabs (user, 2026-08).
-// NOTE: these sum to the PRE-roll overall totals (LARR 8,187,394 = Jul start;
-// CARR 14,188,934 = last-month), so product LARR/CARR sit slightly below the
-// rolled overall base. Vini CARR carries the 36K sales drop.
-const STUDIO_LARR_BASE = 6749214, VINI_LARR_BASE = 1438180;
+// LARR bases are the Aug-start (post-walk) product split and RECONCILE to the
+// overall: Studio 6,756,343 + Vini 1,811,996 = 8,568,339. CARR bases are still
+// the pre-roll last-month split (sum 14,152,934 with the 36K Vini sales drop).
+const STUDIO_LARR_BASE = 6756343, VINI_LARR_BASE = 1811996;
 const STUDIO_CARR_BASE = 8382350, VINI_CARR_BASE = 5806584 - 36000;
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
