@@ -277,15 +277,17 @@ function confirmedARR(rows, tab, ym) {
 function partnerDeltas(rows) {
   const header = rows[0];
   const idx = header.indexOf('Delta (M-1 to M)');
-  let posMRR = 0, negMRR = 0;
-  if (idx === -1) return { posMRR, negMRR };
+  const pIdx = 4; // Product column (E): Studio / Vini; blank → Studio
+  let posMRR = 0, negMRR = 0, posStudio = 0, posVini = 0, negStudio = 0, negVini = 0;
+  if (idx === -1) return { posMRR, negMRR, posStudio, posVini, negStudio, negVini };
   for (const r of rows.slice(1)) {
     if (r.length <= idx || !(r[0] || '').trim()) continue;
     const v = money(r[idx]);
-    if (v > 0) posMRR += v;
-    else if (v < 0) negMRR += v;
+    const isVini = /vini/i.test((r[pIdx] || '').trim());
+    if (v > 0) { posMRR += v; if (isVini) posVini += v; else posStudio += v; }
+    else if (v < 0) { negMRR += v; if (isVini) negVini += v; else negStudio += v; }
   }
-  return { posMRR, negMRR };
+  return { posMRR, negMRR, posStudio, posVini, negStudio, negVini };
 }
 
 function newSales(rows, mmmYY) {
@@ -349,9 +351,12 @@ module.exports = async function handler(req, res) {
 
     // CS churn + partner churn (annualized)
     const churn = csChurn(churnRows, ym);
-    const { posMRR, negMRR } = partnerDeltas(partnerRows);
+    const { posMRR, negMRR, posStudio, posVini, negStudio, negVini } = partnerDeltas(partnerRows);
     const partnerChurnARR = Math.abs(negMRR) * 12;
     const partnerNewARR = posMRR * 12;
+    // Reseller split by Product column (blank → Studio).
+    const resStudioNew = posStudio * 12, resViniNew = posVini * 12;
+    const resStudioChurn = Math.abs(negStudio) * 12, resViniChurn = Math.abs(negVini) * 12;
 
     // New Live MTD
     const nlVini = newLive(viniRows, TABS.vini, ym);
@@ -359,6 +364,15 @@ module.exports = async function handler(req, res) {
     const nlApac = newLive(apacRows, TABS.apacEmea, ym);
     const studioNewLive = nlAmer.arr + nlApac.arr;
     const newLiveTotal = studioNewLive + nlVini.arr + partnerNewARR;
+
+    // Per-product churn & new-live (reseller folded in by product).
+    const studioChurnP = churn.studio.arr + resStudioChurn;
+    const viniChurnP   = churn.vini.arr   + resViniChurn;
+    const studioNLP    = studioNewLive    + resStudioNew;
+    const viniNLP      = nlVini.arr        + resViniNew;
+    // GRR (proj. yearly): (1 − churn/base)^12.  NRR: (1 + (New Live − churn)/base)^12.
+    const grrOf = (c, b) => b > 0 ? Math.max(0, Math.pow(1 - c / b, 12) * 100) : null;
+    const nrrOf = (nl, c, b) => b > 0 ? Math.pow(1 + (nl - c) / b, 12) * 100 : null;
 
     // ARR in Ob
     const obVini = arrInOb(viniRows, TABS.vini);
@@ -399,9 +413,8 @@ module.exports = async function handler(req, res) {
         churn: totalChurnARR,
         newLive: newLiveTotal,
         total: LARR_BASE - totalChurnARR + newLiveTotal,
-        // Per-product (reseller folded into Studio, matching the overall convention).
-        studio: STUDIO_LARR_BASE - (churn.studio.arr + partnerChurnARR) + (studioNewLive + partnerNewARR),
-        vini: VINI_LARR_BASE - churn.vini.arr + nlVini.arr,
+        studio: STUDIO_LARR_BASE - studioChurnP + studioNLP,
+        vini: VINI_LARR_BASE - viniChurnP + viniNLP,
       },
       carr: {
         base: CARR_BASE,
@@ -410,9 +423,12 @@ module.exports = async function handler(req, res) {
         obChurn: obChurnTotal,
         obChurnRooftops: obcVini.rooftops + obcAmer.rooftops + obcApac.rooftops,
         total: carrTotal,
-        studio: STUDIO_CARR_BASE - (churn.studio.arr + partnerChurnARR),
-        vini: VINI_CARR_BASE - churn.vini.arr,
+        studio: STUDIO_CARR_BASE - studioChurnP,
+        vini: VINI_CARR_BASE - viniChurnP,
       },
+      // GRR / NRR on the LARR framework (base − churn, and + New Live for NRR).
+      grr: { total: grrOf(totalChurnARR, LARR_BASE), studio: grrOf(studioChurnP, STUDIO_LARR_BASE), vini: grrOf(viniChurnP, VINI_LARR_BASE) },
+      nrr: { total: nrrOf(newLiveTotal, totalChurnARR, LARR_BASE), studio: nrrOf(studioNLP, studioChurnP, STUDIO_LARR_BASE), vini: nrrOf(viniNLP, viniChurnP, VINI_LARR_BASE) },
       csChurn: {
         logos: churn.logos,
         arr: churn.arr,
