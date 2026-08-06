@@ -410,11 +410,12 @@ module.exports = async function handler(req, res) {
       generatedAt: now.toISOString(),
       larr: {
         base: LARR_BASE,
-        churn: totalChurnARR,
-        newLive: newLiveTotal,
-        total: LARR_BASE - totalChurnARR + newLiveTotal,
-        studio: STUDIO_LARR_BASE - studioChurnP + studioNLP,
-        vini: VINI_LARR_BASE - viniChurnP + viniNLP,
+        // Churn = D2D only (reseller is counted as new addition, NOT churn — per user).
+        churn: churn.arr,
+        newLive: newLiveTotal,       // go-lives + reseller new additions
+        total: LARR_BASE - churn.arr + newLiveTotal,
+        studio: STUDIO_LARR_BASE - churn.studio.arr + studioNLP,
+        vini: VINI_LARR_BASE - churn.vini.arr + viniNLP,
       },
       carr: {
         base: CARR_BASE,
