@@ -365,11 +365,10 @@ module.exports = async function handler(req, res) {
     const studioNewLive = nlAmer.arr + nlApac.arr;
     const newLiveTotal = studioNewLive + nlVini.arr + partnerNewARR;
 
-    // Per-product churn & new-live (reseller folded in by product).
-    const studioChurnP = churn.studio.arr + resStudioChurn;
-    const viniChurnP   = churn.vini.arr   + resViniChurn;
-    const studioNLP    = studioNewLive    + resStudioNew;
-    const viniNLP      = nlVini.arr        + resViniNew;
+    // Per-product new-live: ALL reseller new-live goes to Studio (per user);
+    // Vini new-live is its OB go-lives only.
+    const studioNLP    = studioNewLive    + partnerNewARR;
+    const viniNLP      = nlVini.arr;
     // GRR (proj. yearly): (1 − churn/base)^12.  NRR: (1 + (New Live − churn)/base)^12.
     const grrOf = (c, b) => b > 0 ? Math.max(0, Math.pow(1 - c / b, 12) * 100) : null;
     const nrrOf = (nl, c, b) => b > 0 ? Math.pow(1 + (nl - c) / b, 12) * 100 : null;
@@ -403,7 +402,7 @@ module.exports = async function handler(req, res) {
 
     // CARR = base − this-month churn (CS Tracker + partner). July's New Sales,
     // churn and sales-drop are already baked into CARR_BASE (see its comment).
-    const carrTotal = CARR_BASE - totalChurnARR;
+    const carrTotal = CARR_BASE - churn.arr;   // D2D churn only (reseller = new addition)
 
     const payload = {
       month: ym,
@@ -424,8 +423,8 @@ module.exports = async function handler(req, res) {
         obChurn: obChurnTotal,
         obChurnRooftops: obcVini.rooftops + obcAmer.rooftops + obcApac.rooftops,
         total: carrTotal,
-        studio: STUDIO_CARR_BASE - studioChurnP,
-        vini: VINI_CARR_BASE - viniChurnP,
+        studio: STUDIO_CARR_BASE - churn.studio.arr,
+        vini: VINI_CARR_BASE - churn.vini.arr,
       },
       // GRR / NRR on the LARR framework — churn = D2D only (reseller counts as
       // new addition, not churn), matching LARR. NRR adds New Live.
@@ -440,7 +439,8 @@ module.exports = async function handler(req, res) {
         vini: churn.vini,       // { arr, logos } — Product = Vini
       },
       newLive: {
-        studio: studioNewLive,
+        // Reseller new-live all rolled into Studio (per user); Vini = OB go-lives only.
+        studio: studioNewLive + partnerNewARR,
         vini: nlVini.arr,
         partner: partnerNewARR,
         total: newLiveTotal,
