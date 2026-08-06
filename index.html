@@ -84,13 +84,20 @@
     </div>
   </header>
 
+  <!-- Product tabs -->
+  <div id="tabbar" style="padding:12px 32px 0; display:flex; gap:8px;">
+    <button id="tab-overall" onclick="setTab('overall')" class="ptab" style="font-family:var(--font-sans); font-size:13px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:8px 22px; border-radius:999px; border:1px solid var(--border-strong); background:var(--ink-900); color:#fff; cursor:pointer;">Overall</button>
+    <button id="tab-studio" onclick="setTab('studio')" class="ptab" style="font-family:var(--font-sans); font-size:13px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:8px 22px; border-radius:999px; border:1px solid var(--border-strong); background:transparent; color:var(--text-muted); cursor:pointer;">Studio</button>
+    <button id="tab-vini" onclick="setTab('vini')" class="ptab" style="font-family:var(--font-sans); font-size:13px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:8px 22px; border-radius:999px; border:1px solid var(--border-strong); background:transparent; color:var(--text-muted); cursor:pointer;">Vini</button>
+  </div>
+
   <main style="padding:14px 32px 20px;">
 
     <!-- HERO KPI band (Company) -->
     <section style="background:var(--ink-900); border-radius:18px; padding:22px 30px; box-shadow:var(--shadow-lg); position:relative; overflow:hidden; margin-bottom:10px;">
       <div style="position:absolute; inset:0; background:linear-gradient(120deg, rgba(122,46,69,0.32), rgba(33,26,21,0) 55%); pointer-events:none;"></div>
       <div style="position:relative; display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:16px;">
-        <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--gold-300); font-weight:600;">Company Headline</div>
+        <div id="hero-label" style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--gold-300); font-weight:600;">Company Headline</div>
         <div style="font-size:14px; color:var(--taupe-400);">ARR in USD millions · MTD unless noted</div>
       </div>
       <div class="hero-grid" style="position:relative; display:grid; grid-template-columns:repeat(4, 1fr); gap:24px;">
@@ -182,7 +189,7 @@
       </div>
 
       <!-- STUDIO PRODUCT -->
-      <div class="drow" style="background:#E4EDF6; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+      <div class="drow" data-only="studio" style="background:#E4EDF6; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
         <div class="dtitle" style="width:184px; flex:none;">
           <div style="font-size:19px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Studio Product</div>
           <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Product · Rooftops</div>
@@ -209,7 +216,7 @@
       </div>
 
       <!-- SALES IB / OB · SERVICE IB / OB -->
-      <div class="drow" style="background:#F1E6D0; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+      <div class="drow" data-only="vini" style="background:#F1E6D0; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
         <div class="dtitle" style="width:184px; flex:none;">
           <div style="font-size:19px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Sales IB</div>
           <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Vini · Agents · ARR</div>
@@ -235,7 +242,7 @@
         </div>
       </div>
 
-      <div class="drow" style="background:#F1E6D0; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+      <div class="drow" data-only="vini" style="background:#F1E6D0; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
         <div class="dtitle" style="width:184px; flex:none;">
           <div style="font-size:19px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Sales OB</div>
           <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Vini · Agents · ARR</div>
@@ -261,7 +268,7 @@
         </div>
       </div>
 
-      <div class="drow" style="background:#E2EDE3; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+      <div class="drow" data-only="vini" style="background:#E2EDE3; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
         <div class="dtitle" style="width:184px; flex:none;">
           <div style="font-size:19px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Service IB</div>
           <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Vini · Agents · ARR</div>
@@ -287,7 +294,7 @@
         </div>
       </div>
 
-      <div class="drow" style="background:#E2EDE3; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
+      <div class="drow" data-only="vini" style="background:#E2EDE3; border-radius:12px; padding:13px 24px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:30px;">
         <div class="dtitle" style="width:184px; flex:none;">
           <div style="font-size:19px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--wine-600); font-weight:700; line-height:1.2;">Service OB</div>
           <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Vini · Agents · ARR</div>
@@ -377,61 +384,60 @@
     }).catch(function(){ /* keep cached/baked values on failure */ });
   }
 
-  cachedFetch('/api/metrics', function(m){
-    if (m.larr) put('m-larr', fm(m.larr.total));
-    if (m.carr) put('m-carr', fm(m.carr.total));
-    if (m.newSales) put('m-newsales', fbig(m.newSales.arr));
-    if (m.newOb) put('m-newob', fbig(m.newOb.total));
-    if (m.pws) put('m-pws', fbig(m.pws.total));
-    if (m.newLive) put('m-newlive', fbig(m.newLive.total));
-    if (m.projectedNewLive) {
-      var pl = m.projectedNewLive;
-      if (pl.gap != null) put('m-projlive', fbig(pl.gap));
-      if (pl.achieved != null && pl.target != null) put('m-projlive-sub', 'Proj. Achieved ' + fbig(pl.achieved) + ' / ' + fm(pl.target));
-    }
-    if (m.arrInOb) put('m-arrob', fbig(m.arrInOb.total));
-    if (m.csChurn) {
-      put('m-logos', String(m.csChurn.logos));
-      put('m-churn', fbig(m.csChurn.totalARR));
-      if (m.csChurn.studio && m.csChurn.vini) {
-        put('m-logos-sub', 'Studio ' + m.csChurn.studio.logos + ' \u00b7 Vini ' + m.csChurn.vini.logos);
-        put('m-churn-sub', 'Studio ' + fbig(m.csChurn.studio.arr) + ' \u00b7 Vini ' + fbig(m.csChurn.vini.arr));
-      }
-    }
-  });
+  // ── Product tabs (Overall / Studio / Vini) ──────────────────────────────────
+  var STORE = { metrics:null, delivery:null, support:null, health:null };
+  var TAB = 'overall';
+  var DASH = '—';
+  function fbn(v){ return (v==null||isNaN(Number(v))) ? DASH : fbig(Number(v)); }
+  function pv(o){ if(!o) return null; return TAB==='overall' ? o.total : o[TAB]; }
 
-  // Delivery pendency — separate endpoint (heavy ClickHouse queries).
-  cachedFetch('/api/delivery', function(d){
-    putNum('m-pd-image', d.imagePendency);
-    putNum('m-pd-video', d.videoPendency);
-    putNum('m-pd-360', d.threeSixtyPendency);
-  });
+  function setTab(t){
+    TAB = t;
+    ['overall','studio','vini'].forEach(function(x){
+      var b=document.getElementById('tab-'+x);
+      if(b){ b.style.background=(x===t?'var(--ink-900)':'transparent'); b.style.color=(x===t?'#fff':'var(--text-muted)'); }
+    });
+    var hl=document.getElementById('hero-label');
+    if(hl) hl.textContent = (t==='overall'?'Company Headline':(t==='studio'?'Studio · Headline':'Vini · Headline'));
+    var rows=document.querySelectorAll('[data-only]');
+    for(var i=0;i<rows.length;i++){ var only=rows[i].getAttribute('data-only'); rows[i].style.display=(t==='overall'||t===only)?'':'none'; }
+    renderAll();
+  }
 
-  // Pending tickets — separate endpoint (slow ticket API).
-  cachedFetch('/api/support', function(s){
-    if (!s.pendingTickets) return;
-    putNum('m-pt-vini', s.pendingTickets.vini);
-    putNum('m-pt-studio', s.pendingTickets.studio);
-  });
-
-  cachedFetch('/api/health', function(h){
-    put('h-s-g', String(h.studio.green));
-    put('h-s-a', String(h.studio.amber));
-    put('h-s-r', String(h.studio.red));
-    if (h.company) { if (h.company.grr != null) put('m-grr', h.company.grr.toFixed(1)+'%'); if (h.company.nrr != null) put('m-nrr', h.company.nrr.toFixed(1)+'%'); }
-    put('h-s-g-arr', fbig(h.studio.arr.green));
-    put('h-s-a-arr', fbig(h.studio.arr.amber));
-    put('h-s-r-arr', fbig(h.studio.arr.red));
-    function fill(p, b){
-      put(p+'-g', String(b.green));   put(p+'-g-arr', fbig(b.arr.green));
-      put(p+'-a', String(b.amber));   put(p+'-a-arr', fbig(b.arr.amber));
-      put(p+'-r', String(b.red));     put(p+'-r-arr', fbig(b.arr.red));
+  function renderMetrics(m){
+    if(!m) return;
+    var prod = (TAB!=='overall');
+    put('m-larr', prod ? DASH : (m.larr ? fm(m.larr.total) : null));
+    put('m-carr', prod ? DASH : (m.carr ? fm(m.carr.total) : null));
+    put('m-newsales', prod ? DASH : (m.newSales ? fbig(m.newSales.arr) : null));
+    if(m.newOb) put('m-newob', fbn(pv(m.newOb)));
+    put('m-pws', prod ? DASH : (m.pws ? fbig(m.pws.total) : null));
+    if(m.newLive) put('m-newlive', fbn(pv(m.newLive)));
+    if(prod){ put('m-projlive', DASH); put('m-projlive-sub', ''); }
+    else if(m.projectedNewLive){ var pl=m.projectedNewLive; if(pl.gap!=null) put('m-projlive', fbig(pl.gap)); if(pl.achieved!=null&&pl.target!=null) put('m-projlive-sub','Proj. Achieved '+fbig(pl.achieved)+' / '+fm(pl.target)); }
+    if(m.arrInOb) put('m-arrob', fbn(pv(m.arrInOb)));
+    if(m.csChurn){
+      if(!prod){ put('m-logos', String(m.csChurn.logos)); put('m-churn', fbig(m.csChurn.totalARR));
+        if(m.csChurn.studio&&m.csChurn.vini){ put('m-logos-sub','Studio '+m.csChurn.studio.logos+' · Vini '+m.csChurn.vini.logos); put('m-churn-sub','Studio '+fbig(m.csChurn.studio.arr)+' · Vini '+fbig(m.csChurn.vini.arr)); } }
+      else { var b=m.csChurn[TAB]; if(b){ put('m-logos', String(b.logos)); put('m-churn', fbig(b.arr)); put('m-logos-sub', TAB==='studio'?'Studio':'Vini'); put('m-churn-sub', TAB==='studio'?'Studio':'Vini'); } }
     }
-    if (h.salesIB) fill('h-slib', h.salesIB);
-    if (h.salesOB) fill('h-slob', h.salesOB);
-    if (h.serviceIB) fill('h-svib', h.serviceIB);
-    if (h.serviceOB) fill('h-svob', h.serviceOB);
-  }).catch(function(){ /* keep baked values on failure */ });
+  }
+  function renderDelivery(d){ if(!d) return; putNum('m-pd-image',d.imagePendency); putNum('m-pd-video',d.videoPendency); putNum('m-pd-360',d.threeSixtyPendency); }
+  function renderSupport(s){ if(!s||!s.pendingTickets) return; putNum('m-pt-vini',s.pendingTickets.vini); putNum('m-pt-studio',s.pendingTickets.studio); }
+  function renderHealth(h){
+    if(!h) return;
+    var prod=(TAB!=='overall');
+    if(h.company){ put('m-grr', prod?DASH:(h.company.grr!=null?h.company.grr.toFixed(1)+'%':null)); put('m-nrr', prod?DASH:(h.company.nrr!=null?h.company.nrr.toFixed(1)+'%':null)); }
+    if(h.studio){ put('h-s-g',String(h.studio.green)); put('h-s-a',String(h.studio.amber)); put('h-s-r',String(h.studio.red)); put('h-s-g-arr',fbig(h.studio.arr.green)); put('h-s-a-arr',fbig(h.studio.arr.amber)); put('h-s-r-arr',fbig(h.studio.arr.red)); }
+    function fill(p,b){ if(!b) return; put(p+'-g',String(b.green)); put(p+'-g-arr',fbig(b.arr.green)); put(p+'-a',String(b.amber)); put(p+'-a-arr',fbig(b.arr.amber)); put(p+'-r',String(b.red)); put(p+'-r-arr',fbig(b.arr.red)); }
+    fill('h-slib',h.salesIB); fill('h-slob',h.salesOB); fill('h-svib',h.serviceIB); fill('h-svob',h.serviceOB);
+  }
+  function renderAll(){ renderMetrics(STORE.metrics); renderDelivery(STORE.delivery); renderSupport(STORE.support); renderHealth(STORE.health); }
+
+  cachedFetch('/api/metrics', function(m){ STORE.metrics=m; renderMetrics(m); });
+  cachedFetch('/api/delivery', function(d){ STORE.delivery=d; renderDelivery(d); });
+  cachedFetch('/api/support', function(s){ STORE.support=s; renderSupport(s); });
+  cachedFetch('/api/health', function(h){ STORE.health=h; renderHealth(h); }).catch(function(){});
 </script>
 
 <script>
