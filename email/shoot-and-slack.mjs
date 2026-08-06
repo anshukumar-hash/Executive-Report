@@ -23,8 +23,11 @@ try {
   await page.waitForSelector('#report-root', { timeout: 30000 });
   // Let the live /api/metrics + /api/health + delivery/support calls populate.
   await page.waitForTimeout(18000);
-  // Hide the floating Copy Snapshot button so it isn't captured in the corner.
-  await page.evaluate(() => { const b = document.getElementById('copyBtn'); if (b) b.style.display = 'none'; });
+  // Hide the Copy Snapshot button AND the Overall/Studio/Vini tab bar so neither
+  // is captured — the screenshot is always the (default) Overall report.
+  await page.evaluate(() => {
+    ['copyBtn', 'tabbar'].forEach((id) => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  });
   const el = await page.$('#report-root');
   png = await el.screenshot({ type: 'png' });
 } finally {
