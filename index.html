@@ -362,7 +362,7 @@
     put('m-carr', prod ? DASH : (m.carr ? fm(m.carr.total) : null));
     put('m-newsales', prod ? DASH : (m.newSales ? fbig(m.newSales.arr) : null));
     if(m.newOb) put('m-newob', fbn(pv(m.newOb)));
-    put('m-pws', prod ? DASH : (m.pws ? fbig(m.pws.total) : null));
+    if(m.pws) put('m-pws', fbn(pv(m.pws)));   // total / studio / vini per tab
     if(m.newLive) put('m-newlive', fbn(pv(m.newLive)));
     if(prod){ put('m-projlive', DASH); put('m-projlive-sub', ''); }
     else if(m.projectedNewLive){ var pl=m.projectedNewLive; if(pl.gap!=null) put('m-projlive', fbig(pl.gap)); if(pl.achieved!=null&&pl.target!=null) put('m-projlive-sub','Proj. Achieved '+fbig(pl.achieved)+' / '+fm(pl.target)); }

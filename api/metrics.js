@@ -54,28 +54,35 @@
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
 const LARR_BASE = 8714327;
 
-// PWS is taken DIRECTLY from the PWS tracker sheet — cell Y1 of the tab
-// gid=1138324292 (overall PWS ARR). Fetched via gviz with headers=0 so row 1 is
-// returned as data (not treated as a column header) and range=Y1 keeps it to the
-// single cell. CACHED once per UTC day: the sheet is a daily-updated book, so we
-// hit it at most once a day (per warm instance); stale value is served on error.
+// PWS from the PWS tracker sheet (gid=1138324292): column Y "Current PWS" summed
+// from row 4 down, split by the Product column (E) into Studio / Vini (overall =
+// Studio + Vini, matches Y1). Refreshed on a short interval (10 min) — not daily.
 const PWS_SHEET_ID = '16nRHqa2ym1d05WddHZR0KfnSajzkZ848J2lEu0Hu4xc';
 const PWS_GID = '1138324292';
-const PWS_CELL = 'Y1';
-let _pwsCache = { day: null, value: null };
-async function fetchPwsCell() {
-  const today = new Date().toISOString().slice(0, 10);   // UTC date key
-  if (_pwsCache.day === today && _pwsCache.value != null) return _pwsCache.value;
+const PWS_TTL_MS = 10 * 60 * 1000;
+let _pwsCache = { at: 0, data: null };
+async function fetchPws() {
+  const now = Date.now();
+  if (_pwsCache.data && (now - _pwsCache.at) < PWS_TTL_MS) return _pwsCache.data;
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${PWS_SHEET_ID}/gviz/tq`
-      + `?tqx=out:csv&gid=${PWS_GID}&headers=0&range=${PWS_CELL}`;
-    const res = await fetch(url);
-    if (!res.ok) return _pwsCache.value;                 // serve last good on failure
-    const raw = (await res.text()).trim().replace(/^"+|"+$/g, '');
-    const n = money(raw);
-    if (isFinite(n) && n > 0) { _pwsCache = { day: today, value: n }; return n; }
-    return _pwsCache.value;
-  } catch { return _pwsCache.value; }
+    const rows = await fetchCSV(PWS_SHEET_ID, PWS_GID);
+    // Header on row 3 (index 2): locate "Product" and "Current PWS" columns.
+    const hdr = rows[2] || [];
+    let prodCol = hdr.findIndex(h => String(h).trim().toLowerCase() === 'product');
+    let yCol = hdr.findIndex(h => String(h).trim().toLowerCase() === 'current pws');
+    if (prodCol === -1) prodCol = 4;   // col E fallback
+    if (yCol === -1) yCol = 24;        // col Y fallback
+    let studio = 0, vini = 0;
+    for (let r = 3; r < rows.length; r++) {   // data from row 4 (Y4:Y)
+      const row = rows[r]; if (!row) continue;
+      const v = money(row[yCol]); if (!v) continue;
+      const p = String(row[prodCol] || '');
+      if (/vini/i.test(p)) vini += v; else if (/studio/i.test(p)) studio += v;
+    }
+    const total = studio + vini;
+    if (total > 0) { _pwsCache = { at: now, data: { total, studio, vini } }; return _pwsCache.data; }
+    return _pwsCache.data;
+  } catch { return _pwsCache.data; }
 }
 
 // Legacy PWS fallback base (only used if the sheet fetch fails):
@@ -318,7 +325,7 @@ module.exports = async function handler(req, res) {
   const mmmYY = `${mmm[0].toUpperCase()}${mmm.slice(1)}'${String(now.getUTCFullYear()).slice(2)}`;
 
   try {
-    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows, pwsCell] =
+    const [churnRows, viniRows, amerRows, apacRows, partnerRows, salesRows, pwsData] =
       await Promise.all([
         fetchCSV(CHURN_SHEET, CHURN_GID),
         fetchCSV(OB_SHEET, TABS.vini.gid),
@@ -326,7 +333,7 @@ module.exports = async function handler(req, res) {
         fetchCSV(OB_SHEET, TABS.apacEmea.gid),
         fetchCSV(PARTNER_SHEET, PARTNER_GID),
         fetchCSV(OB_SHEET, NEWSALES_GID),
-        fetchPwsCell(),
+        fetchPws(),
       ]);
 
     // CS churn + partner churn (annualized)
@@ -429,13 +436,15 @@ module.exports = async function handler(req, res) {
         rooftops: noVini.rooftops + noAmer.rooftops,
       },
       pws: {
-        // Primary: ARR from the PWS tracker "Final Sheet"!Y2. Fallback to the
-        // legacy base + New Sales − New Ob only if that fetch fails.
-        source: pwsCell != null ? 'sheet:gid1138324292!Y1' : 'fallback:formula',
+        // Primary: "Current PWS" (col Y) summed by Product from the tracker sheet
+        // → studio / vini / total. Fallback to the legacy formula if fetch fails.
+        source: pwsData ? 'sheet:Current PWS (Y) by Product' : 'fallback:formula',
+        studio: pwsData ? pwsData.studio : null,
+        vini: pwsData ? pwsData.vini : null,
         base: PWS_BASE,
         newSales: newSalesMtd.arr,
         newOb: newObTotal,
-        total: pwsCell != null ? pwsCell : (PWS_BASE + newSalesMtd.arr - newObTotal),
+        total: pwsData ? pwsData.total : (PWS_BASE + newSalesMtd.arr - newObTotal),
       },
       // Pending tickets moved to /api/support, delivery pendency to /api/delivery
       // so their slow sources don't block this core dashboard load.
