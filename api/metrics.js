@@ -99,6 +99,13 @@ const PWS_BASE = 3806316;
 // OB-churn terms here anymore — July's are already baked into the base.
 const CARR_BASE = 14776383;
 
+// Product-level opening bases for the Studio/Vini tabs (user, 2026-08).
+// NOTE: these sum to the PRE-roll overall totals (LARR 8,187,394 = Jul start;
+// CARR 14,188,934 = last-month), so product LARR/CARR sit slightly below the
+// rolled overall base. Vini CARR carries the 36K sales drop.
+const STUDIO_LARR_BASE = 6749214, VINI_LARR_BASE = 1438180;
+const STUDIO_CARR_BASE = 8382350, VINI_CARR_BASE = 5806584 - 36000;
+
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
 const NEW_LIVE_TARGET = 1500000;
@@ -392,6 +399,9 @@ module.exports = async function handler(req, res) {
         churn: totalChurnARR,
         newLive: newLiveTotal,
         total: LARR_BASE - totalChurnARR + newLiveTotal,
+        // Per-product (reseller folded into Studio, matching the overall convention).
+        studio: STUDIO_LARR_BASE - (churn.studio.arr + partnerChurnARR) + (studioNewLive + partnerNewARR),
+        vini: VINI_LARR_BASE - churn.vini.arr + nlVini.arr,
       },
       carr: {
         base: CARR_BASE,
@@ -400,6 +410,8 @@ module.exports = async function handler(req, res) {
         obChurn: obChurnTotal,
         obChurnRooftops: obcVini.rooftops + obcAmer.rooftops + obcApac.rooftops,
         total: carrTotal,
+        studio: STUDIO_CARR_BASE - (churn.studio.arr + partnerChurnARR),
+        vini: VINI_CARR_BASE - churn.vini.arr,
       },
       csChurn: {
         logos: churn.logos,

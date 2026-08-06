@@ -358,8 +358,8 @@
   function renderMetrics(m){
     if(!m) return;
     var prod = (TAB!=='overall');
-    put('m-larr', prod ? DASH : (m.larr ? fm(m.larr.total) : null));
-    put('m-carr', prod ? DASH : (m.carr ? fm(m.carr.total) : null));
+    if(m.larr){ var lv=pv(m.larr); put('m-larr', lv!=null?fm(lv):DASH); }
+    if(m.carr){ var cv=pv(m.carr); put('m-carr', cv!=null?fm(cv):DASH); }
     if(m.newSales) put('m-newsales', fbn(pv(m.newSales)));   // total / studio / vini per tab
     if(m.newOb) put('m-newob', fbn(pv(m.newOb)));
     if(m.pws) put('m-pws', fbn(pv(m.pws)));   // total / studio / vini per tab
