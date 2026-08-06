@@ -34,6 +34,10 @@
   *{ box-sizing:border-box; }
   .blank{ color:var(--border-strong) !important; }
   .page-scroll{ overflow-x:auto; }
+  /* .drow flex lives in CSS (not only inline) so that toggling a row's inline
+     display for the product tabs (style.display='') reverts to flex — not the
+     default block, which would stack the heading above the numbers. */
+  .drow{ display:flex; align-items:center; }
 
   /* Product-row RAG tiles (Studio Product + Vini agents) — boxed like the
      reference design; department rows stay plain. Heading stays in its own
