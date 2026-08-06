@@ -89,22 +89,26 @@ async function fetchPws() {
 //   PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
 
-// CARR base — rolled forward manually each month (per user, 2026-08):
-//   Last month CARR   14,188,934
-//   − last-month (Jul) churn   −339,943   (rechecked, incl. PAYG 7,334 Studio)
-//   + New Sales (Jul)          +963,392
-//   − Sales drop                −36,000
-//   = CARR base        14,776,383   ← Aug start
-// Running CARR = base − this-month (Aug) churn (CS + partner). No New Sales /
-// OB-churn terms here anymore — July's are already baked into the base.
-const CARR_BASE = 14776383;
-
-// Product-level opening bases for the Studio/Vini tabs (user, 2026-08).
-// LARR bases are the Aug-start (post-walk) product split and RECONCILE to the
-// overall: Studio 6,756,343 + Vini 1,811,996 = 8,568,339. CARR bases are still
-// the pre-roll last-month split (sum 14,152,934 with the 36K Vini sales drop).
+// LARR product-level opening bases (Aug-start, post-July-walk). RECONCILE to
+// the overall: Studio 6,756,343 + Vini 1,811,996 = 8,568,339.
 const STUDIO_LARR_BASE = 6756343, VINI_LARR_BASE = 1811996;
-const STUDIO_CARR_BASE = 8382350, VINI_CARR_BASE = 5806584 - 36000;
+
+// CARR — explicit July→now walk on each product level (per user, 2026-08).
+// The static July pieces below are constants; the current-month (Aug) churn and
+// New Live MTD are LIVE from the data. Overall CARR = Studio + Vini.
+//   Studio:  8,382,350 base
+//          − 275,187  Jul revenue loss  (D2D 249,385 + reseller 18,468 + PAYG 7,334)
+//          + 278,264  Jul new sales
+//          + 152,316  Jul reseller                         = 8,537,743  start
+//   Vini:    5,806,584 base
+//          −  36,000  Vini sales drop
+//          −  64,756  Jul revenue loss
+//          + 685,128  Jul new sales
+//          +  66,612  Jul reseller                         = 6,457,568  start
+//   Running CARR (each level) = start − Aug churn (D2D) + New Live MTD (D2D+reseller).
+const STUDIO_CARR_BASE = 8382350, VINI_CARR_BASE = 5806584;
+const STUDIO_CARR_START = STUDIO_CARR_BASE - 275187 + 278264 + 152316;       // 8,537,743
+const VINI_CARR_START   = VINI_CARR_BASE - 36000 - 64756 + 685128 + 66612;   // 6,457,568
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
@@ -400,9 +404,11 @@ module.exports = async function handler(req, res) {
     const obcApac = obChurn(apacRows, TABS.apacEmea, ym);
     const obChurnTotal = obcVini.arr + obcAmer.arr + obcApac.arr;
 
-    // CARR = base − this-month churn (CS Tracker + partner). July's New Sales,
-    // churn and sales-drop are already baked into CARR_BASE (see its comment).
-    const carrTotal = CARR_BASE - churn.arr;   // D2D churn only (reseller = new addition)
+    // CARR — per-level July→now walk: static July start (constants above)
+    // − Aug MTD churn (D2D) + New Live MTD (D2D+reseller). Overall = Studio+Vini.
+    const carrStudio = STUDIO_CARR_START - churn.studio.arr + studioNLP;
+    const carrVini   = VINI_CARR_START   - churn.vini.arr   + viniNLP;
+    const carrTotal  = carrStudio + carrVini;
 
     const payload = {
       month: ym,
@@ -417,14 +423,14 @@ module.exports = async function handler(req, res) {
         vini: VINI_LARR_BASE - churn.vini.arr + viniNLP,
       },
       carr: {
-        base: CARR_BASE,
+        base: STUDIO_CARR_START + VINI_CARR_START,
         newSales: newSalesMtd.arr,
         csChurn: totalChurnARR,
         obChurn: obChurnTotal,
         obChurnRooftops: obcVini.rooftops + obcAmer.rooftops + obcApac.rooftops,
         total: carrTotal,
-        studio: STUDIO_CARR_BASE - churn.studio.arr,
-        vini: VINI_CARR_BASE - churn.vini.arr,
+        studio: carrStudio,
+        vini: carrVini,
       },
       // GRR / NRR on the LARR framework — churn = D2D only (reseller counts as
       // new addition, not churn), matching LARR. NRR adds New Live.

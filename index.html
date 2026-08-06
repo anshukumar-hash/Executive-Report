@@ -181,7 +181,9 @@
           <div style="font-size:13px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-top:5px;">Operations</div>
         </div>
         <div class="metrics" style="flex:1; display:flex; align-items:flex-start; gap:0;">
-          <div data-only="vini" style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-vini">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Vini</div></div>
+          <div data-exact="overall" style="flex:1;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-vini">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Vini</div></div>
+          <div data-exact="vini" style="flex:1; display:none;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-sales">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Sales</div></div>
+          <div data-exact="vini" style="flex:1; display:none; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-service">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Service</div></div>
           <div data-only="studio" data-bl style="flex:1; border-left:1px solid var(--border-subtle); padding-left:30px;"><div class="blank" style="font-family:var(--font-display); font-size:36px; color:var(--ink-900); line-height:1;" id="m-pt-studio">—</div><div style="font-size:13px; color:var(--text-muted); margin-top:8px;">Pending Tickets · Studio</div></div>
           <div style="flex:1;"></div>
         </div>
@@ -343,6 +345,10 @@
     if(hl) hl.textContent = (t==='overall'?'Company Headline':(t==='studio'?'Studio · Headline':'Vini · Headline'));
     var rows=document.querySelectorAll('[data-only]');
     for(var i=0;i<rows.length;i++){ var only=rows[i].getAttribute('data-only'); rows[i].style.display=(t==='overall'||t===only)?'':'none'; }
+    // data-exact shows a cell on ONE tab only (not on overall) — used for the
+    // Support Sales/Service split, which replaces the single Vini tile on the Vini tab.
+    var ex=document.querySelectorAll('[data-exact]');
+    for(var k=0;k<ex.length;k++){ ex[k].style.display=(t===ex[k].getAttribute('data-exact'))?'':'none'; }
     // On product tabs a divider cell can become the only visible metric — strip
     // its left border/padding so no stray divider line shows.
     var prod=(t!=='overall');
@@ -371,7 +377,7 @@
     }
   }
   function renderDelivery(d){ if(!d) return; putNum('m-pd-image',d.imagePendency); putNum('m-pd-video',d.videoPendency); putNum('m-pd-360',d.threeSixtyPendency); }
-  function renderSupport(s){ if(!s||!s.pendingTickets) return; putNum('m-pt-vini',s.pendingTickets.vini); putNum('m-pt-studio',s.pendingTickets.studio); }
+  function renderSupport(s){ if(!s||!s.pendingTickets) return; var p=s.pendingTickets; putNum('m-pt-vini',p.vini); putNum('m-pt-studio',p.studio); putNum('m-pt-sales',p.sales); putNum('m-pt-service',p.service); }
   function renderHealth(h){
     if(!h) return;
     var prod=(TAB!=='overall');

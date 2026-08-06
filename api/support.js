@@ -31,19 +31,26 @@ module.exports = async function handler(req, res) {
     if (!ticketRes.ok) throw new Error(`tickets -> HTTP ${ticketRes.status}`);
     const all = await ticketRes.json();
 
-    let studio = 0, vini = 0, unclassified = 0;
+    // The Product (Studio/Vini) column now carries the renamed Vini buckets:
+    // "Sales" and "Service" are both Vini (Vini = Sales + Service). Studio stays
+    // Studio (incl. "Studio - ETA"). Legacy/other tags — plain "Vini",
+    // "Vini - ETA", "Internal-Vini", "Spam", blank — are left unclassified so
+    // the Vini tile always reconciles exactly to Sales + Service.
+    let studio = 0, sales = 0, service = 0, unclassified = 0;
     for (const t of all) {
       if (!t.is_pending) continue;
       const p = (t['Product (Studio/Vini)'] || '').toLowerCase();
       if (p.includes('studio')) studio++;
-      else if (p.includes('vini')) vini++;
+      else if (p.includes('service')) service++;
+      else if (p.includes('sales')) sales++;
       else unclassified++;
     }
+    const vini = sales + service;
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
     return res.status(200).json({
       generatedAt: new Date().toISOString(),
-      pendingTickets: { studio, vini, unclassified },
+      pendingTickets: { studio, vini, sales, service, unclassified },
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
