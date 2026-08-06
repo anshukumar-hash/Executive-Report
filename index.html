@@ -360,7 +360,7 @@
     var prod = (TAB!=='overall');
     put('m-larr', prod ? DASH : (m.larr ? fm(m.larr.total) : null));
     put('m-carr', prod ? DASH : (m.carr ? fm(m.carr.total) : null));
-    put('m-newsales', prod ? DASH : (m.newSales ? fbig(m.newSales.arr) : null));
+    if(m.newSales) put('m-newsales', fbn(pv(m.newSales)));   // total / studio / vini per tab
     if(m.newOb) put('m-newob', fbn(pv(m.newOb)));
     if(m.pws) put('m-pws', fbn(pv(m.pws)));   // total / studio / vini per tab
     if(m.newLive) put('m-newlive', fbn(pv(m.newLive)));

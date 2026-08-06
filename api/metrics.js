@@ -286,15 +286,19 @@ function newSales(rows, mmmYY) {
   const statusIdx = header.indexOf('Agreements Execution Status');
   const arrIdx = header.indexOf('ARR Potential ($)');
   const monthIdx = header.indexOf('Agreement month');
-  let arr = 0, agreements = 0;
+  // Product column → split Studio/Vini (Product "Vini" = Vini, everything else Studio).
+  const prodIdx = header.findIndex(c => String(c).trim().toLowerCase() === 'product');
+  let arr = 0, agreements = 0, studio = 0, vini = 0;
   for (const r of rows.slice(1)) {
     if (r.length <= Math.max(statusIdx, arrIdx, monthIdx)) continue;
     if ((r[statusIdx] || '').trim().toLowerCase() !== 'executed') continue;
     if ((r[monthIdx] || '').trim().toLowerCase() !== mmmYY.toLowerCase()) continue;
-    arr += money(r[arrIdx]);
-    agreements++;
+    const a = money(r[arrIdx]);
+    arr += a; agreements++;
+    const p = (prodIdx !== -1 ? (r[prodIdx] || '') : '').trim();
+    if (/vini/i.test(p)) vini += a; else studio += a;
   }
-  return { arr, agreements };
+  return { arr, agreements, total: arr, studio, vini };
 }
 
 // New Ob MTD: OB tab rows whose "In-Ob from" is "From PWS" or "From New Sales"
