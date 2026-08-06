@@ -427,9 +427,10 @@ module.exports = async function handler(req, res) {
         studio: STUDIO_CARR_BASE - studioChurnP,
         vini: VINI_CARR_BASE - viniChurnP,
       },
-      // GRR / NRR on the LARR framework (base − churn, and + New Live for NRR).
-      grr: { total: grrOf(totalChurnARR, LARR_BASE), studio: grrOf(studioChurnP, STUDIO_LARR_BASE), vini: grrOf(viniChurnP, VINI_LARR_BASE) },
-      nrr: { total: nrrOf(newLiveTotal, totalChurnARR, LARR_BASE), studio: nrrOf(studioNLP, studioChurnP, STUDIO_LARR_BASE), vini: nrrOf(viniNLP, viniChurnP, VINI_LARR_BASE) },
+      // GRR / NRR on the LARR framework — churn = D2D only (reseller counts as
+      // new addition, not churn), matching LARR. NRR adds New Live.
+      grr: { total: grrOf(churn.arr, LARR_BASE), studio: grrOf(churn.studio.arr, STUDIO_LARR_BASE), vini: grrOf(churn.vini.arr, VINI_LARR_BASE) },
+      nrr: { total: nrrOf(newLiveTotal, churn.arr, LARR_BASE), studio: nrrOf(studioNLP, churn.studio.arr, STUDIO_LARR_BASE), vini: nrrOf(viniNLP, churn.vini.arr, VINI_LARR_BASE) },
       csChurn: {
         logos: churn.logos,
         arr: churn.arr,
