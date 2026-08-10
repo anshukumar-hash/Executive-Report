@@ -13,30 +13,43 @@ const express = require('express');
 const path = require('path');
 
 // ── Config: parse APP_SECRETS once, fail fast, expose to the handlers ─────────
-// The api/*.js handlers read individual process.env.* values, so after parsing
-// we copy each key from APP_SECRETS into process.env before they run.
-const REQUIRED_KEYS = ['METABASE_API_KEY', 'METABASE_BASE_URL', 'METABASE_DATABASE_ID'];
+// All runtime config comes from ONE env var, APP_SECRETS (a JSON string). Any
+// keys it carries are copied into process.env before the handlers run, using
+// their EXISTING env-var names (no new names invented).
+//
+// This app currently needs NO mandatory secret: every data source is a public
+// URL (Google Sheets CSV, the Freshdesk proxy, the CSM dashboard, and Metabase
+// PUBLIC question links). So REQUIRED_KEYS is empty. api/delivery.js accepts
+// OPTIONAL overrides — METABASE_BASE_URL and the METABASE_*_PUBLIC_UUID values —
+// which may be supplied through APP_SECRETS but are not required. To make a
+// future key mandatory, add its exact existing env-var name to REQUIRED_KEYS and
+// it will be validated at startup. Never hardcode a production fallback here.
+const REQUIRED_KEYS = [];
 
 function loadConfig() {
   const raw = process.env.APP_SECRETS;
-  if (!raw) {
-    console.error('FATAL: APP_SECRETS is not set. Provide it as a JSON string containing: ' + REQUIRED_KEYS.join(', '));
-    process.exit(1);
+  if (raw) {
+    let cfg;
+    try {
+      cfg = JSON.parse(raw);
+    } catch (e) {
+      console.error('FATAL: APP_SECRETS is set but is not valid JSON — ' + e.message);
+      process.exit(1);
+    }
+    if (cfg && typeof cfg === 'object') {
+      // Real env vars win over APP_SECRETS, so a platform override is possible.
+      for (const [k, v] of Object.entries(cfg)) {
+        if (process.env[k] === undefined) process.env[k] = String(v);
+      }
+      console.log('Config loaded from APP_SECRETS (' + Object.keys(cfg).length + ' key(s)).');
+    }
   }
-  let cfg;
-  try {
-    cfg = JSON.parse(raw);
-  } catch (e) {
-    console.error('FATAL: APP_SECRETS is not valid JSON — ' + e.message);
-    process.exit(1);
-  }
-  const missing = REQUIRED_KEYS.filter((k) => cfg[k] == null || cfg[k] === '');
+  const missing = REQUIRED_KEYS.filter((k) => !process.env[k]);
   if (missing.length) {
-    console.error('FATAL: APP_SECRETS is missing required key(s): ' + missing.join(', '));
+    console.error('FATAL: missing required config key(s): ' + missing.join(', ') +
+      ' — provide them inside APP_SECRETS (a JSON string).');
     process.exit(1);
   }
-  for (const [k, v] of Object.entries(cfg)) process.env[k] = String(v);
-  console.log('Config loaded from APP_SECRETS (' + Object.keys(cfg).length + ' keys).');
 }
 loadConfig();
 
@@ -49,8 +62,8 @@ app.disable('x-powered-by');
 // external I/O so it stays fast and independent of upstream services.
 app.get('/health', (req, res) => {
   res.status(200).json({
-    status: 'ok',
-    service: process.env.NAME,
+    status: 'healthy',
+    service: process.env.NAME ?? 'Executive-Report',
     timestamp: new Date().toISOString(),
   });
 });
