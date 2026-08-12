@@ -1,0 +1,62 @@
+name: Promote main → aws-prod (auto-deploy to AWS)
+
+# WHY THIS EXISTS
+# ---------------
+# executive-report.spyne.ai runs on ECS Fargate. CodePipeline builds the image
+# from the `aws-prod` branch ONLY, and it AUTO-TRIGGERS on every push to
+# aws-prod (CodeBuild → ECS rolling deploy, ~5-8 min).
+#
+# We develop on `main`. Nothing advanced `aws-prod` automatically, so each code
+# change needed a manual `aws-prod` push to reach AWS. This job fast-forwards
+# aws-prod → main on every push to main, so a normal merge to main flows all the
+# way to the live AWS site with no manual step. (Same pattern as csm-dashboard;
+# no time-based schedule here because this app fetches its data live per request
+# and does not bake data into the image, so only CODE changes need a rebuild.)
+#
+# SAFETY: fast-forward ONLY. If aws-prod ever diverges from main (someone
+# committed straight to it), this fails loudly rather than force-pushing and
+# silently discarding that work.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: aws-promote
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history — needed to test ancestry)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward aws-prod → main
+        run: |
+          set -euo pipefail
+          git fetch origin main aws-prod
+          MAIN=$(git rev-parse origin/main)
+          PROD=$(git rev-parse origin/aws-prod)
+
+          if [ "$MAIN" = "$PROD" ]; then
+            echo "aws-prod already at $(git rev-parse --short "$MAIN") — nothing to promote."
+            exit 0
+          fi
+
+          # Refuse anything that isn't a clean fast-forward.
+          if ! git merge-base --is-ancestor "$PROD" "$MAIN"; then
+            echo "::error::aws-prod ($(git rev-parse --short "$PROD")) is NOT an ancestor of main — it has diverged. Refusing to force-push; reconcile by hand."
+            exit 1
+          fi
+
+          BEHIND=$(git rev-list --count "$PROD".."$MAIN")
+          echo "Promoting aws-prod $(git rev-parse --short "$PROD") → $(git rev-parse --short "$MAIN") ($BEHIND commit(s))."
+          git push origin "$MAIN":refs/heads/aws-prod
+          echo "Pushed aws-prod. CodePipeline will rebuild the image and roll ECS (~5-8 min)."
