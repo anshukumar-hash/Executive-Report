@@ -119,9 +119,9 @@ const CHURN_SHEET = '1H5cBuWmLD_roF_LV3foWII37PHbTqqNdzCcVGeAGU8A';
 const PARTNER_SHEET = '1kvvDbnpUAodPnmnLEVAWejLAzTwEflkzLSkXiAeOkB4';
 
 const TABS = {
-  vini:      { gid: '2053683245', goCol: 16, entCol: 7, pldCol: 15, confCol: 13, churnCol: 17, obStage: 'ob initiated' },
-  amer:      { gid: '1134407178', goCol: 15, entCol: 6, pldCol: 13, confCol: 12, churnCol: 16, obStage: 'ob initiated' },
-  apacEmea:  { gid: '764039413',  goCol: 21, entCol: 6, pldCol: 13, confCol: 12, churnCol: 23, obStage: 'in implementation' },
+  vini:      { gid: '2053683245', goCol: 16, entCol: 7, pldCol: 15, confCol: 13, churnCol: 17, obCallCol: 14, obStage: 'ob initiated' },
+  amer:      { gid: '1134407178', goCol: 15, entCol: 6, pldCol: 13, confCol: 12, churnCol: 16, obCallCol: 14, obStage: 'ob initiated' },
+  apacEmea:  { gid: '764039413',  goCol: 21, entCol: 6, pldCol: 13, confCol: 12, churnCol: 23, obCallCol: 15, obStage: 'in implementation' },
 };
 
 const CHURN_GID = '1421999984';
@@ -314,20 +314,29 @@ function newSales(rows, mmmYY) {
   return { arr, agreements, total: arr, studio, vini };
 }
 
-// New Ob MTD: OB tab rows whose "In-Ob from" is "From PWS" or "From New Sales"
-// (header row is CSV row 2; data from row 3). Sum ARR (col 2).
-function newObMtd(rows) {
-  const header = rows[2] || [];
-  const idx = header.findIndex(h => h.trim().toLowerCase() === 'in-ob from');
-  if (idx === -1) return { arr: 0, rooftops: 0 };
+// "Sent to OB" (New Ob): OB-tab rows whose OB Call Date falls in the CURRENT
+// month. Sum ARR ($) (col 2). Header is CSV row 3 (index 2); data from row 4
+// (index 3). The OB Call Date column index differs per tab (passed in), and the
+// date format varies too — "24-Jul-25" (Vini) and "23-Jul-2025" (AMER/Non-AMER).
+const MON_IDX = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+function parseObCallDate(s) {
+  const m = String(s || '').trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+  if (!m) return null;
+  const mo = MON_IDX[m[2].toLowerCase()];
+  if (mo == null) return null;
+  let y = Number(m[3]);
+  if (y < 100) y += 2000;
+  return { y, mo };
+}
+function newObMtd(rows, dateCol, now) {
+  const curY = now.getUTCFullYear(), curM = now.getUTCMonth();
   let arr = 0, rooftops = 0;
   for (const r of rows.slice(3)) {
-    if (r.length <= idx) continue;
-    const v = (r[idx] || '').trim();
-    if (v === 'From PWS' || v === 'From New Sales') {
-      arr += money(r[2]);
-      rooftops++;
-    }
+    if (r.length <= Math.max(dateCol, 2)) continue;
+    const d = parseObCallDate(r[dateCol]);
+    if (!d || d.y !== curY || d.mo !== curM) continue;
+    arr += money(r[2]);
+    rooftops++;
   }
   return { arr, rooftops };
 }
@@ -394,9 +403,11 @@ module.exports = async function handler(req, res) {
     const newSalesMtd = newSales(salesRows, mmmYY);
 
     // New Ob MTD (Vini + Studio AMER) and derived PWS
-    const noVini = newObMtd(viniRows);
-    const noAmer = newObMtd(amerRows);
-    const newObTotal = noVini.arr + noAmer.arr;
+    // "Sent to OB" — OB Call Date in the current month, across all 3 OB tabs.
+    const noVini = newObMtd(viniRows, TABS.vini.obCallCol, now);
+    const noAmer = newObMtd(amerRows, TABS.amer.obCallCol, now);
+    const noApac = newObMtd(apacRows, TABS.apacEmea.obCallCol, now);
+    const newObTotal = noVini.arr + noAmer.arr + noApac.arr;
 
     // Onboarding churn (OB Drop + Sales Drop, drop-date in current month)
     const obcVini = obChurn(viniRows, TABS.vini, ym);
@@ -470,10 +481,10 @@ module.exports = async function handler(req, res) {
       },
       newSales: newSalesMtd,
       newOb: {
-        vini: noVini.arr,
-        studio: noAmer.arr,
+        vini: noVini.arr,                    // Vini OB tab
+        studio: noAmer.arr + noApac.arr,     // AMER + Non-AMER OB tabs
         total: newObTotal,
-        rooftops: noVini.rooftops + noAmer.rooftops,
+        rooftops: noVini.rooftops + noAmer.rooftops + noApac.rooftops,
       },
       pws: {
         // Primary: "Current PWS" (col Y) summed by Product from the tracker sheet
