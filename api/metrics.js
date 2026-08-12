@@ -319,10 +319,14 @@ function newSales(rows, mmmYY) {
 // (index 3). The OB Call Date column index differs per tab (passed in), and the
 // date format varies too — "24-Jul-25" (Vini) and "23-Jul-2025" (AMER/Non-AMER).
 const MON_IDX = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+// The OB tabs MIX date formats within the same column — dash-separated
+// ("24-Jul-25", "23-Jul-2025", "22-Jun-2026") and space-separated
+// ("6 Aug 2026", "21 Jul 2026"), month as 3-letter abbr or full name. Accept a
+// day / month / year split on any of space, dash, or slash so none are dropped.
 function parseObCallDate(s) {
-  const m = String(s || '').trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+  const m = String(s || '').trim().match(/^(\d{1,2})[\s\-\/]+([A-Za-z]{3,})[\s\-\/]+(\d{2,4})$/);
   if (!m) return null;
-  const mo = MON_IDX[m[2].toLowerCase()];
+  const mo = MON_IDX[m[2].slice(0, 3).toLowerCase()];
   if (mo == null) return null;
   let y = Number(m[3]);
   if (y < 100) y += 2000;
