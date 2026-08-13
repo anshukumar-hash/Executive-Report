@@ -44,15 +44,16 @@
  */
 
 // Last month-end ARR book — rolled forward manually each month.
-// AUG start = JUL month-end LARR from the July ARR walk (user, 2026-08):
-//   Jul start          8,187,394   (Studio 6,749,214 · Vini 1,438,180)
-//   + Jul expansion    +720,888    D2D 501,960 (S 130,000 · V 371,960)
-//                                  + Reseller 218,928 (S 152,316 · V 66,612)
-//   − Jul revenue loss −339,943    Studio 275,187 (D2D 249,385 + reseller 18,468
-//                                  + PAYG 7,334) · Vini 64,756
-//   = Jul month-end    8,568,339   ← Aug starting LARR (Studio 6,756,343 · Vini 1,811,996)
+// AUG start = JUL month-end LARR from the July ARR walk (user, 2026-08, revised
+// with the exact New-Live / Churn split by Studio·Vini and D2D·Partner):
+//   Jul start        8,187,394      (Studio 6,749,214 · Vini 1,438,180)
+//   + Jul New Live   +834,641.76    D2D 611,476.80 (Studio 172,000.80 · Vini 439,476.00)
+//                                   + Partner 223,164.96 (Studio 219,564.96 · Vini 3,600.00)
+//   − Jul churn      −339,782.28    D2D 309,747.72 (Studio 182,040.12 · Vini 127,707.60)
+//                                   + Partner 30,034.56 (Studio 30,034.56 · Vini 0)
+//   = Jul month-end   8,682,253.48  ← Aug starting LARR (Studio 6,928,705.08 · Vini 1,753,548.40)
 // Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
-const LARR_BASE = 8568339;
+const LARR_BASE = 8682253.48;
 
 // PWS from the PWS tracker sheet (gid=1138324292): column Y "Current PWS" summed
 // from row 4 down, split by the Product column (E) into Studio / Vini (overall =
@@ -90,8 +91,8 @@ async function fetchPws() {
 const PWS_BASE = 3806316;
 
 // LARR product-level opening bases (Aug-start, post-July-walk). RECONCILE to
-// the overall: Studio 6,756,343 + Vini 1,811,996 = 8,568,339.
-const STUDIO_LARR_BASE = 6756343, VINI_LARR_BASE = 1811996;
+// the overall: Studio 6,928,705.08 + Vini 1,753,548.40 = 8,682,253.48.
+const STUDIO_LARR_BASE = 6928705.08, VINI_LARR_BASE = 1753548.40;
 
 // CARR — explicit July→now walk on each product level (per user, 2026-08).
 // The static July pieces below are constants; the current-month (Aug) churn and
