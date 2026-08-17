@@ -7,10 +7,12 @@
 //   SLACK_BOT_TOKEN — Slack bot token (xoxb-…) with files:write + chat:write
 //   SLACK_CHANNEL   — target channel ID (e.g. C0123ABCD); bot must be in it
 //   SLACK_COMMENT   — optional message text above the images
-//   BASE_URL        — optional; defaults to the deployed dashboard
+//   BASE_URL        — optional; defaults to the live AWS dashboard
 import { chromium } from 'playwright';
 
-const BASE = process.env.BASE_URL || 'https://exec-report-repo.vercel.app';
+// Capture the live AWS deployment (auto-refreshes on every push to main via
+// aws-promote → CodePipeline). Set BASE_URL to override (e.g. the Vercel copy).
+const BASE = process.env.BASE_URL || 'https://executive-report.spyne.ai';
 const token = process.env.SLACK_BOT_TOKEN;
 const channel = process.env.SLACK_CHANNEL;
 if (!token || !channel) { console.log('SLACK_BOT_TOKEN / SLACK_CHANNEL not set — skipping (no-op).'); process.exit(0); }
