@@ -472,6 +472,13 @@ module.exports = async function handler(req, res) {
         vini: viniNLP,
         partner: partnerNewARR,
         total: newLiveTotal,
+        // D2D vs Reseller split for the "New Live MTD" sub-line (per product + overall).
+        d2dStudio: studioNewLive,
+        d2dVini: nlVini.arr,
+        d2dTotal: studioNewLive + nlVini.arr,
+        resStudio: resStudioNew,
+        resVini: resViniNew,
+        resTotal: partnerNewARR,
         rooftops: nlVini.rooftops + nlAmer.rooftops + nlApac.rooftops,
       },
       projectedNewLive: {
