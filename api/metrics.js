@@ -43,17 +43,10 @@
  *    "Sales Drop" and "Churn / Drop-off Date" is in the current month; sum ARR.
  */
 
-// Last month-end ARR book — rolled forward manually each month.
-// AUG start = JUL month-end LARR from the July ARR walk (user, 2026-08, revised
-// with the exact New-Live / Churn split by Studio·Vini and D2D·Partner):
-//   Jul start        8,187,394      (Studio 6,749,214 · Vini 1,438,180)
-//   + Jul New Live   +834,641.76    D2D 611,476.80 (Studio 172,000.80 · Vini 439,476.00)
-//                                   + Partner 223,164.96 (Studio 219,564.96 · Vini 3,600.00)
-//   − Jul churn      −339,782.28    D2D 309,747.72 (Studio 182,040.12 · Vini 127,707.60)
-//                                   + Partner 30,034.56 (Studio 30,034.56 · Vini 0)
-//   = Jul month-end   8,682,253.48  ← Aug starting LARR (Studio 6,928,705.08 · Vini 1,753,548.40)
-// Running LARR = base − churn MTD + New Live MTD (i.e. − Aug churn during Aug).
-const LARR_BASE = 8682253.48;
+// Aug-start Live ARR base, taken directly from the Sales KPI sheet (per user,
+// 2026-08): Studio 6,787,093 + Vini 1,895,160 = 8,682,253.
+// Running LARR = base − Aug churn (D2D + reseller) + Aug New Live (D2D + reseller).
+const LARR_BASE = 8682253;
 
 // PWS from the PWS tracker sheet (gid=1138324292): column Y "Current PWS" summed
 // from row 4 down, split by the Product column (E) into Studio / Vini (overall =
@@ -90,9 +83,9 @@ async function fetchPws() {
 //   PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
 
-// LARR product-level opening bases (Aug-start, post-July-walk). RECONCILE to
-// the overall: Studio 6,928,705.08 + Vini 1,753,548.40 = 8,682,253.48.
-const STUDIO_LARR_BASE = 6928705.08, VINI_LARR_BASE = 1753548.40;
+// LARR product-level Aug-start bases (Sales KPI sheet, per user). RECONCILE to
+// the overall: Studio 6,787,093 + Vini 1,895,160 = 8,682,253.
+const STUDIO_LARR_BASE = 6787093, VINI_LARR_BASE = 1895160;
 
 // CARR — August-start Contracted ARR base, taken directly from the Sales KPI
 // sheet (per user, 2026-08). Running CARR (each level) = this base
