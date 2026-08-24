@@ -94,22 +94,11 @@ const PWS_BASE = 3806316;
 // the overall: Studio 6,928,705.08 + Vini 1,753,548.40 = 8,682,253.48.
 const STUDIO_LARR_BASE = 6928705.08, VINI_LARR_BASE = 1753548.40;
 
-// CARR — explicit July→now walk on each product level (per user, 2026-08).
-// The static July pieces below are constants; the current-month (Aug) churn and
-// New Live MTD are LIVE from the data. Overall CARR = Studio + Vini.
-//   Studio:  8,382,350 base
-//          − 275,187  Jul revenue loss  (D2D 249,385 + reseller 18,468 + PAYG 7,334)
-//          + 278,264  Jul new sales
-//          + 152,316  Jul reseller                         = 8,537,743  start
-//   Vini:    5,806,584 base
-//          −  36,000  Vini sales drop
-//          −  64,756  Jul revenue loss
-//          + 685,128  Jul new sales
-//          +  66,612  Jul reseller                         = 6,457,568  start
-//   Running CARR (each level) = start − Aug churn (D2D) + New Live MTD (D2D+reseller).
-const STUDIO_CARR_BASE = 8382350, VINI_CARR_BASE = 5806584;
-const STUDIO_CARR_START = STUDIO_CARR_BASE - 275187 + 278264 + 152316;       // 8,537,743
-const VINI_CARR_START   = VINI_CARR_BASE - 36000 - 64756 + 685128 + 66612;   // 6,457,568
+// CARR — August-start Contracted ARR base, taken directly from the Sales KPI
+// sheet (per user, 2026-08). Running CARR (each level) = this base
+// − Aug churn (D2D + reseller) + New Live MTD (D2D + reseller). Overall = Studio + Vini.
+//   Studio 8,472,906 + Vini 6,318,432 = 14,791,338 (Aug-start Contracted ARR).
+const STUDIO_CARR_START = 8472906, VINI_CARR_START = 6318432;   // Total 14,791,338
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
