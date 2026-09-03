@@ -43,10 +43,10 @@
  *    "Sales Drop" and "Churn / Drop-off Date" is in the current month; sum ARR.
  */
 
-// Aug-start Live ARR base, taken directly from the Sales KPI sheet (per user,
-// 2026-08): Studio 6,787,093 + Vini 1,895,160 = 8,682,253.
-// Running LARR = base − Aug churn (D2D + reseller) + Aug New Live (D2D + reseller).
-const LARR_BASE = 8682253;
+// Sep-start Live ARR base — frozen at the August close (rolls 1 Oct), from the
+// CARR/LARR walk (user, 2026-09): Studio 6,687,336.28 + Vini 2,122,540 = 8,809,876.28.
+// Running LARR = base − Sep churn (tracker incl. contraction + partner) + Sep New Live (D2D + partner).
+const LARR_BASE = 8809876.28;
 
 // PWS from the PWS tracker sheet (gid=1138324292): column Y "Current PWS" summed
 // from row 4 down, split by the Product column (E) into Studio / Vini (overall =
@@ -83,15 +83,15 @@ async function fetchPws() {
 //   PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
 
-// LARR product-level Aug-start bases (Sales KPI sheet, per user). RECONCILE to
-// the overall: Studio 6,787,093 + Vini 1,895,160 = 8,682,253.
-const STUDIO_LARR_BASE = 6787093, VINI_LARR_BASE = 1895160;
+// LARR product-level Sep-start bases (walk, frozen at Aug close). RECONCILE to
+// the overall: Studio 6,687,336.28 + Vini 2,122,540 = 8,809,876.28.
+const STUDIO_LARR_BASE = 6687336.28, VINI_LARR_BASE = 2122540;
 
-// CARR — August-start Contracted ARR base, taken directly from the Sales KPI
-// sheet (per user, 2026-08). Running CARR (each level) = this base
-// − Aug churn (D2D + reseller) + New Live MTD (D2D + reseller). Overall = Studio + Vini.
-//   Studio 8,472,906 + Vini 6,318,432 = 14,791,338 (Aug-start Contracted ARR).
-const STUDIO_CARR_START = 8472906, VINI_CARR_START = 6318432;   // Total 14,791,338
+// CARR — Sep-start Contracted ARR base, frozen at the August close (rolls 1 Oct),
+// from the CARR/LARR walk (user, 2026-09). Running CARR (each level) = this base
+// − Sep churn (tracker incl. contraction + partner) + New Live MTD (D2D + partner).
+//   Studio 8,373,149.28 + Vini 6,545,812 = 14,918,961.28 (Sep-start Contracted ARR).
+const STUDIO_CARR_START = 8373149.28, VINI_CARR_START = 6545812;   // Total 14,918,961.28
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
