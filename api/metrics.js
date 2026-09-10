@@ -46,7 +46,7 @@
 // Sep-start Live ARR base — frozen at the August close (rolls 1 Oct), from the
 // CARR/LARR walk (user, 2026-09): Studio 6,687,336.28 + Vini 2,122,540 = 8,809,876.28.
 // Running LARR = base − Sep churn (tracker incl. contraction + partner) + Sep New Live (D2D + partner).
-const LARR_BASE = 8809876.28;
+const LARR_BASE = 8743120.92;
 
 // PWS from the PWS tracker sheet (gid=1138324292): column Y "Current PWS" summed
 // from row 4 down, split by the Product column (E) into Studio / Vini (overall =
@@ -84,14 +84,14 @@ async function fetchPws() {
 const PWS_BASE = 3806316;
 
 // LARR product-level Sep-start bases (walk, frozen at Aug close). RECONCILE to
-// the overall: Studio 6,687,336.28 + Vini 2,122,540 = 8,809,876.28.
-const STUDIO_LARR_BASE = 6687336.28, VINI_LARR_BASE = 2122540;
+// the overall: Studio 6,707,369.04 + Vini 2,035,751.88 = 8,743,120.92.
+const STUDIO_LARR_BASE = 6707369.04, VINI_LARR_BASE = 2035751.88;
 
 // CARR — Sep-start Contracted ARR base, frozen at the August close (rolls 1 Oct),
 // from the CARR/LARR walk (user, 2026-09). Running CARR (each level) = this base
 // − Sep churn (tracker incl. contraction + partner) + New Live MTD (D2D + partner).
-//   Studio 8,373,149.28 + Vini 6,545,812 = 14,918,961.28 (Sep-start Contracted ARR).
-const STUDIO_CARR_START = 8373149.28, VINI_CARR_START = 6545812;   // Total 14,918,961.28
+//   Studio 8,413,049.04 + Vini 6,435,491.88 = 14,848,540.92 (Sep-start Contracted ARR).
+const STUDIO_CARR_START = 8413049.04, VINI_CARR_START = 6435491.88;   // Total 14,848,540.92
 
 // Monthly New Live target — the Onboarding "gap to target" tile shows
 // (target − achieved) in red, with achieved below. Rolled forward manually.
