@@ -265,16 +265,16 @@ function partnerDeltas(rows) {
   const header = rows[0];
   const idx = header.indexOf('Delta (M-1 to M)');
   const pIdx = 4; // Product column (E): Studio / Vini; blank → Studio
-  let posMRR = 0, negMRR = 0, posStudio = 0, posVini = 0, negStudio = 0, negVini = 0;
-  if (idx === -1) return { posMRR, negMRR, posStudio, posVini, negStudio, negVini };
+  let posMRR = 0, negMRR = 0, posStudio = 0, posVini = 0, negStudio = 0, negVini = 0, negStudioN = 0, negViniN = 0;
+  if (idx === -1) return { posMRR, negMRR, posStudio, posVini, negStudio, negVini, negStudioN, negViniN };
   for (const r of rows.slice(1)) {
     if (r.length <= idx || !(r[0] || '').trim()) continue;
     const v = money(r[idx]);
     const isVini = /vini/i.test((r[pIdx] || '').trim());
     if (v > 0) { posMRR += v; if (isVini) posVini += v; else posStudio += v; }
-    else if (v < 0) { negMRR += v; if (isVini) negVini += v; else negStudio += v; }
+    else if (v < 0) { negMRR += v; if (isVini) { negVini += v; negViniN++; } else { negStudio += v; negStudioN++; } }
   }
-  return { posMRR, negMRR, posStudio, posVini, negStudio, negVini };
+  return { posMRR, negMRR, posStudio, posVini, negStudio, negVini, negStudioN, negViniN };
 }
 
 function newSales(rows, mmmYY) {
@@ -351,7 +351,7 @@ module.exports = async function handler(req, res) {
 
     // CS churn + partner churn (annualized)
     const churn = csChurn(churnRows, ym);
-    const { posMRR, negMRR, posStudio, posVini, negStudio, negVini } = partnerDeltas(partnerRows);
+    const { posMRR, negMRR, posStudio, posVini, negStudio, negVini, negStudioN, negViniN } = partnerDeltas(partnerRows);
     const partnerChurnARR = Math.abs(negMRR) * 12;
     const partnerNewARR = posMRR * 12;
     // Reseller split by Product column (blank → Studio).
@@ -441,12 +441,13 @@ module.exports = async function handler(req, res) {
       grr: { total: grrOf(churnAll, LARR_BASE), studio: grrOf(churnStudioAll, STUDIO_LARR_BASE), vini: grrOf(churnViniAll, VINI_LARR_BASE) },
       nrr: { total: nrrOf(newLiveTotal, churnAll, LARR_BASE), studio: nrrOf(studioNLP, churnStudioAll, STUDIO_LARR_BASE), vini: nrrOf(viniNLP, churnViniAll, VINI_LARR_BASE) },
       csChurn: {
-        logos: churn.logos,
+        logos: churn.logos + negStudioN + negViniN,   // D2D + reseller churn accounts
         arr: churn.arr,
         partnerChurnARR,
         totalARR: churn.arr + partnerChurnARR,
-        studio: churn.studio,   // { arr, logos } — Product = Studio (default)
-        vini: churn.vini,       // { arr, logos } — Product = Vini
+        // Per-product Revenue loss + Accounts INCLUDE reseller (partner) churn.
+        studio: { arr: churnStudioAll, logos: churn.studio.logos + negStudioN },
+        vini:   { arr: churnViniAll,   logos: churn.vini.logos + negViniN },
       },
       newLive: {
         // Reseller new-live split by product (col E) into each product's total.
