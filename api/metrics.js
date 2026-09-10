@@ -407,11 +407,11 @@ module.exports = async function handler(req, res) {
     const obcApac = obChurn(apacRows, TABS.apacEmea, ym);
     const obChurnTotal = obcVini.arr + obcAmer.arr + obcApac.arr;
 
-    // CARR — per-level July→now walk: static July start (constants above)
-    // − Aug MTD churn (D2D + reseller) + New Live MTD (D2D + reseller, split by
-    // product). Overall = Studio + Vini.
-    const carrStudio = STUDIO_CARR_START - churnStudioAll + studioNLP;
-    const carrVini   = VINI_CARR_START   - churnViniAll   + viniNLP;
+    // CARR (Contracted ARR) — Sep-start base − MTD churn (D2D + reseller)
+    // + New SALES MTD (signed contracts, split by product). NOTE: CARR adds New
+    // SALES (not New Live go-lives) — contracted ARR grows when a deal is signed.
+    const carrStudio = STUDIO_CARR_START - churnStudioAll + newSalesMtd.studio;
+    const carrVini   = VINI_CARR_START   - churnViniAll   + newSalesMtd.vini;
     const carrTotal  = carrStudio + carrVini;
 
     const payload = {
