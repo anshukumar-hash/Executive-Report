@@ -13,8 +13,8 @@
  *
  * Config via APP_SECRETS:
  *   CSM_API_URL    optional, default https://csm-dashboard.spyne.ai
- *   CSM_API_TOKEN  required for this endpoint — if absent it answers 503 and
- *                  names the key, rather than failing opaquely.
+ *   CSM_API_TOKEN  optional — sent as a Bearer header when present. The
+ *                  deployed service reaches /api/v1/summary without one
  */
 
 const CSM_API_URL = (process.env.CSM_API_URL || 'https://csm-dashboard.spyne.ai').replace(/\/+$/, '');
@@ -22,7 +22,8 @@ const CSM_API_TOKEN = process.env.CSM_API_TOKEN;
 
 async function summary(product) {
   const url = `${CSM_API_URL}/api/v1/summary${product ? `?product=${encodeURIComponent(product)}` : ''}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${CSM_API_TOKEN}` } });
+  const headers = CSM_API_TOKEN ? { Authorization: `Bearer ${CSM_API_TOKEN}` } : {};
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     const body = (await res.text()).slice(0, 200);
     throw new Error(`csm-dashboard /api/v1/summary?product=${product} -> HTTP ${res.status}: ${body}`);
@@ -45,13 +46,6 @@ function bucket(b) {
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  if (!CSM_API_TOKEN) {
-    return res.status(503).json({
-      error:
-        'CSM_API_TOKEN is not set. Add CSM_API_TOKEN (and optionally CSM_API_URL) ' +
-        'to APP_SECRETS to source health from csm-dashboard /api/v1/summary.',
-    });
-  }
   try {
     const [studio, vini] = await Promise.all([summary('studio'), summary('vini')]);
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
