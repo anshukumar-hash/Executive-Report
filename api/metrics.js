@@ -73,18 +73,22 @@ async function fetchPws() {
     const yCol = findCol('current pws', 24);         // col Y
     const obCol = findCol('ob done this month', 11); // col L
     // New pipeline = "Current PWS" (Y) where PWS Type (I) == "New".
-    // OB Done this Month (L) = ARR onboarded this month, subtracted from PWS.
-    // Both split by Product (E); non-Vini -> Studio.
+    // OB Done this Month (L) = ARR onboarded this month, subtracted from PWS,
+    // but only for rows where PWS Type == "Old". Both split by Product (E).
     let studioNew = 0, viniNew = 0, studioOB = 0, viniOB = 0;
     for (let r = 3; r < rows.length; r++) {
       const row = rows[r]; if (!row) continue;
       const isVini = /vini/i.test(String(row[prodCol] || ''));
-      if (String(row[typeCol] || '').trim().toLowerCase() === 'new') {
+      const pwsType = String(row[typeCol] || '').trim().toLowerCase();
+      if (pwsType === 'new') {
         const v = money(row[yCol]);
         if (v) { if (isVini) viniNew += v; else studioNew += v; }
       }
-      const ob = money(row[obCol]);
-      if (ob) { if (isVini) viniOB += ob; else studioOB += ob; }
+      // OB Done this Month only counts against "Old" PWS-Type rows.
+      if (pwsType === 'old') {
+        const ob = money(row[obCol]);
+        if (ob) { if (isVini) viniOB += ob; else studioOB += ob; }
+      }
     }
     const data = {
       studioNew, viniNew, studioOB, viniOB,
@@ -511,7 +515,7 @@ module.exports = async function handler(req, res) {
       pws: {
         // PWS = product base (D2D + Partner, per user) + "New" PWS-Type rows from
         // the tracker sheet (col I = "New"), col Y "Current PWS" summed by Product.
-        source: 'base(D2D+Partner) + sheet:New (Y) - OB Done this Month (L), by Product',
+        source: 'base(D2D+Partner) + New(Y,type=New) - OB Done this Month(L,type=Old), by Product',
         studio: pwsData ? pwsData.studio : STUDIO_PWS_BASE,
         vini: pwsData ? pwsData.vini : VINI_PWS_BASE,
         base: { studio: STUDIO_PWS_BASE, vini: VINI_PWS_BASE, total: STUDIO_PWS_BASE + VINI_PWS_BASE },
