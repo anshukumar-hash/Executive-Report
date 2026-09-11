@@ -9,6 +9,7 @@
 //   SLACK_COMMENT   — optional message text above the images
 //   BASE_URL        — optional; defaults to the live AWS dashboard
 import { chromium } from 'playwright';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 // Capture the live AWS deployment (auto-refreshes on every push to main via
 // aws-promote → CodePipeline). Set BASE_URL to override (e.g. the Vercel copy).
@@ -16,6 +17,50 @@ const BASE = process.env.BASE_URL || 'https://executive-report.spyne.ai';
 const token = process.env.SLACK_BOT_TOKEN;
 const channel = process.env.SLACK_CHANNEL;
 if (!token || !channel) { console.log('SLACK_BOT_TOKEN / SLACK_CHANNEL not set — skipping (no-op).'); process.exit(0); }
+
+// ── Regression guard ─────────────────────────────────────────────────────────
+// Hold the report (and ask for approval) when BOTH New Sales MTD and New Live
+// MTD fell vs the LAST sent report, within the same month. Both are MTD
+// cumulative — they only rise inside a month — so a simultaneous drop signals a
+// data problem, not real movement. A month rollover legitimately resets both to
+// ~0, so the check only fires when prev and today are the same month. Bypass
+// with FORCE_SEND=1 (manual approval via the workflow's "force" input).
+const STATE_FILE = new URL('./last-report-state.json', import.meta.url);
+const FORCE = process.env.FORCE_SEND === '1' || process.env.FORCE_SEND === 'true';
+
+let todayNewSales = null, todayNewLive = null, curMonth = null;
+try {
+  const mx = await (await fetch(`${BASE}/api/metrics?_=${Date.now()}`)).json();
+  todayNewSales = Number(mx?.newSales?.total ?? mx?.newSales?.arr);
+  todayNewLive  = Number(mx?.newLive?.total);
+  curMonth = mx?.month || null;
+} catch (e) { console.log('guard: could not read /api/metrics —', e.message); }
+
+let prev = null;
+try { prev = JSON.parse(readFileSync(STATE_FILE, 'utf8')); } catch {}
+
+const bothDown = prev && prev.month === curMonth
+  && Number.isFinite(todayNewSales) && Number.isFinite(todayNewLive)
+  && todayNewSales < prev.newSales && todayNewLive < prev.newLive;
+
+if (bothDown && !FORCE) {
+  const fmt = (n) => '$' + Math.round(n).toLocaleString();
+  const text =
+    ':warning: *Executive Report held for review — NOT sent.*\n'
+    + `Both headline MTD figures fell vs the last report (${prev.date}):\n`
+    + `• New Sales MTD: ${fmt(prev.newSales)} → ${fmt(todayNewSales)}\n`
+    + `• New Live MTD: ${fmt(prev.newLive)} → ${fmt(todayNewLive)}\n`
+    + 'MTD figures only rise within a month, so this looks like a data issue. '
+    + 'Review, then re-run the workflow with *force* to send.';
+  await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ channel, text }),
+  });
+  console.log('HELD: New Sales and New Live both down vs last report — alerted, not sent.');
+  process.exit(0);
+}
+
 
 // The three views to capture, in tab order. `tab` matches the dashboard's
 // setTab() argument; `label` is the human name used in the Slack file titles.
@@ -85,3 +130,9 @@ const r3 = await fetch('https://slack.com/api/files.completeUploadExternal', {
 const j3 = await r3.json();
 if (!j3.ok) throw new Error('completeUploadExternal failed: ' + j3.error);
 console.log(`Posted ${files.length} exec report screenshots (Overall/Studio/Vini) to Slack channel ${channel}.`);
+
+// Record this send's headline figures so the next run can compare.
+try {
+  writeFileSync(STATE_FILE, JSON.stringify({ date: today, month: curMonth, newSales: todayNewSales, newLive: todayNewLive }, null, 2));
+  console.log('state updated:', curMonth, todayNewSales, todayNewLive);
+} catch (e) { console.log('could not write report state:', e.message); }

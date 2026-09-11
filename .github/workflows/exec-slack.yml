@@ -7,7 +7,12 @@ on:
     - cron: '30 23 * * *'
     - cron: '0 0 * * *'
     - cron: '30 0 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force send even if New Sales & New Live both dropped vs last report'
+        type: boolean
+        default: false
 
 concurrency:
   group: exec-report-slack
@@ -39,6 +44,15 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
 
+      - name: Restore report state (last sent headline figures)
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: email/last-report-state.json
+          key: exec-report-state-${{ github.run_id }}
+          restore-keys: |
+            exec-report-state-
+
       - name: Set up Node
         if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-node@v4
@@ -55,4 +69,6 @@ jobs:
       - name: Screenshot + post to Slack
         if: steps.gate.outputs.skip != 'true'
         working-directory: email
+        env:
+          FORCE_SEND: ${{ (github.event_name == 'workflow_dispatch' && inputs.force) && '1' || '0' }}
         run: node shoot-and-slack.mjs
