@@ -58,30 +58,45 @@ let _pwsCache = { at: 0, data: null };
 async function fetchPws() {
   const now = Date.now();
   if (_pwsCache.data && (now - _pwsCache.at) < PWS_TTL_MS) return _pwsCache.data;
+  const baseOnly = {
+    studioNew: 0, viniNew: 0,
+    studio: STUDIO_PWS_BASE, vini: VINI_PWS_BASE, total: STUDIO_PWS_BASE + VINI_PWS_BASE,
+  };
   try {
     const rows = await fetchCSV(PWS_SHEET_ID, PWS_GID);
-    // Header on row 3 (index 2): locate "Product" and "Current PWS" columns.
+    // Header on row 3 (index 2); data below (A3:AH). Locate Product (E),
+    // PWS Type (I) and Current PWS (Y) by name, with fixed-letter fallbacks.
     const hdr = rows[2] || [];
-    let prodCol = hdr.findIndex(h => String(h).trim().toLowerCase() === 'product');
-    let yCol = hdr.findIndex(h => String(h).trim().toLowerCase() === 'current pws');
-    if (prodCol === -1) prodCol = 4;   // col E fallback
-    if (yCol === -1) yCol = 24;        // col Y fallback
-    let studio = 0, vini = 0;
-    for (let r = 3; r < rows.length; r++) {   // data from row 4 (Y4:Y)
+    const findCol = (name, fb) => { const i = hdr.findIndex(h => String(h).trim().toLowerCase() === name); return i === -1 ? fb : i; };
+    const prodCol = findCol('product', 4);     // col E
+    const typeCol = findCol('pws type', 8);    // col I
+    const yCol = findCol('current pws', 24);   // col Y
+    // Sum "Current PWS" (Y) for rows where PWS Type (I) == "New", by Product (E).
+    let studioNew = 0, viniNew = 0;
+    for (let r = 3; r < rows.length; r++) {
       const row = rows[r]; if (!row) continue;
+      if (String(row[typeCol] || '').trim().toLowerCase() !== 'new') continue;
       const v = money(row[yCol]); if (!v) continue;
       const p = String(row[prodCol] || '');
-      if (/vini/i.test(p)) vini += v; else if (/studio/i.test(p)) studio += v;
+      if (/vini/i.test(p)) viniNew += v; else studioNew += v;   // non-Vini -> Studio
     }
-    const total = studio + vini;
-    if (total > 0) { _pwsCache = { at: now, data: { total, studio, vini } }; return _pwsCache.data; }
-    return _pwsCache.data;
-  } catch { return _pwsCache.data; }
+    const data = {
+      studioNew, viniNew,
+      studio: STUDIO_PWS_BASE + studioNew,
+      vini: VINI_PWS_BASE + viniNew,
+      total: STUDIO_PWS_BASE + VINI_PWS_BASE + studioNew + viniNew,
+    };
+    _pwsCache = { at: now, data };
+    return data;
+  } catch { return _pwsCache.data || baseOnly; }
 }
 
 // Legacy PWS fallback base (only used if the sheet fetch fails):
 //   PWS = base + New Sales MTD − New Ob MTD.
 const PWS_BASE = 3806316;
+// PWS base by product (D2D + Partner), supplied by user (2026-09). The live
+// "New" pipeline from the tracker sheet (PWS Type = "New") is added on top.
+const STUDIO_PWS_BASE = 1403583, VINI_PWS_BASE = 2966088;
 
 // LARR product-level Sep-start bases (walk, frozen at Aug close). RECONCILE to
 // the overall: Studio 6,707,369.04 + Vini 2,035,751.88 = 8,743,120.92.
@@ -488,15 +503,14 @@ module.exports = async function handler(req, res) {
         rooftops: noVini.rooftops + noAmer.rooftops + noApac.rooftops,
       },
       pws: {
-        // Primary: "Current PWS" (col Y) summed by Product from the tracker sheet
-        // → studio / vini / total. Fallback to the legacy formula if fetch fails.
-        source: pwsData ? 'sheet:Current PWS (Y) by Product' : 'fallback:formula',
-        studio: pwsData ? pwsData.studio : null,
-        vini: pwsData ? pwsData.vini : null,
-        base: PWS_BASE,
-        newSales: newSalesMtd.arr,
-        newOb: newObTotal,
-        total: pwsData ? pwsData.total : (PWS_BASE + newSalesMtd.arr - newObTotal),
+        // PWS = product base (D2D + Partner, per user) + "New" PWS-Type rows from
+        // the tracker sheet (col I = "New"), col Y "Current PWS" summed by Product.
+        source: 'base(D2D+Partner) + sheet:PWS Type=New (Y) by Product',
+        studio: pwsData ? pwsData.studio : STUDIO_PWS_BASE,
+        vini: pwsData ? pwsData.vini : VINI_PWS_BASE,
+        base: { studio: STUDIO_PWS_BASE, vini: VINI_PWS_BASE, total: STUDIO_PWS_BASE + VINI_PWS_BASE },
+        newFromSheet: pwsData ? { studio: pwsData.studioNew, vini: pwsData.viniNew } : { studio: 0, vini: 0 },
+        total: pwsData ? pwsData.total : (STUDIO_PWS_BASE + VINI_PWS_BASE),
       },
       // Pending tickets moved to /api/support, delivery pendency to /api/delivery
       // so their slow sources don't block this core dashboard load.
