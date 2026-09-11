@@ -18,6 +18,19 @@ const token = process.env.SLACK_BOT_TOKEN;
 const channel = process.env.SLACK_CHANNEL;
 if (!token || !channel) { console.log('SLACK_BOT_TOKEN / SLACK_CHANNEL not set — skipping (no-op).'); process.exit(0); }
 
+// ── Hard approval gate ───────────────────────────────────────────────────────
+// The report must NEVER be sent without the user's explicit permission. The only
+// thing that counts as permission is a manual run that sets FORCE_SEND=1 (wired
+// to the workflow_dispatch "force" input). Every scheduled/automatic run reaches
+// here with FORCE_SEND unset and no-ops. This is independent of the workflow's
+// enabled/disabled state — so even if a schedule is ever re-enabled by accident,
+// nothing is posted to Slack until a human explicitly approves that run.
+const FORCE = process.env.FORCE_SEND === '1' || process.env.FORCE_SEND === 'true';
+if (!FORCE) {
+  console.log('NOT SENT: no explicit approval (FORCE_SEND!=1). Run the workflow manually with force=true to send.');
+  process.exit(0);
+}
+
 // ── Regression guard ─────────────────────────────────────────────────────────
 // Hold the report (and ask for approval) when BOTH New Sales MTD and New Live
 // MTD fell vs the LAST sent report, within the same month. Both are MTD
@@ -26,7 +39,6 @@ if (!token || !channel) { console.log('SLACK_BOT_TOKEN / SLACK_CHANNEL not set �
 // ~0, so the check only fires when prev and today are the same month. Bypass
 // with FORCE_SEND=1 (manual approval via the workflow's "force" input).
 const STATE_FILE = new URL('./last-report-state.json', import.meta.url);
-const FORCE = process.env.FORCE_SEND === '1' || process.env.FORCE_SEND === 'true';
 
 let todayNewSales = null, todayNewLive = null, curMonth = null;
 try {
