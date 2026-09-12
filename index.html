@@ -394,9 +394,41 @@
   }
   function renderAll(){ renderMetrics(STORE.metrics); renderDelivery(STORE.delivery); renderSupport(STORE.support); renderHealth(STORE.health); }
 
+  // Support tickets: server endpoint first, but the AWS/ECS egress sometimes
+  // gets an empty array from the proxy while browsers get full data. So if the
+  // server returns empty/null, fall back to fetching the source DIRECTLY from
+  // the browser (source sends Access-Control-Allow-Origin:*) and compute the
+  // split client-side. Only non-empty results are cached, so we never persist 0.
+  var TICKETS_SRC = 'https://dilipticket.vercel.app/api/tickets';
+  function classifyTickets(all){
+    var studio=0,sales=0,service=0,unclassified=0;
+    for(var i=0;i<all.length;i++){ var t=all[i]; if(!t.is_pending) continue;
+      var p=String(t['Product (Studio/Vini)']||'').toLowerCase();
+      if(p.indexOf('studio')>=0) studio++;
+      else if(p.indexOf('service')>=0) service++;
+      else if(p.indexOf('sales')>=0) sales++;
+      else unclassified++; }
+    return { studio:studio, vini:sales+service, sales:sales, service:service, unclassified:unclassified };
+  }
+  function supportEmpty(p){ return !p || ((p.studio||0)+(p.vini||0)+(p.unclassified||0))===0; }
+  function applySupport(p){ STORE.support={pendingTickets:p}; renderSupport(STORE.support);
+    try{ localStorage.setItem('exec:support', JSON.stringify(p)); }catch(e){} }
+  function loadSupportDirect(){
+    fetch(TICKETS_SRC).then(function(r){ return r.json(); }).then(function(all){
+      if(Array.isArray(all) && all.length){ applySupport(classifyTickets(all)); }
+    }).catch(function(){ /* keep cached value */ });
+  }
+  function loadSupport(){
+    try{ var c=localStorage.getItem('exec:support'); if(c){ STORE.support={pendingTickets:JSON.parse(c)}; renderSupport(STORE.support); } }catch(e){}
+    fetch('/api/support').then(function(r){ return r.json(); }).then(function(s){
+      if(s && !supportEmpty(s.pendingTickets)){ applySupport(s.pendingTickets); }
+      else { loadSupportDirect(); }
+    }).catch(function(){ loadSupportDirect(); });
+  }
+
   cachedFetch('/api/metrics', function(m){ STORE.metrics=m; renderMetrics(m); });
   cachedFetch('/api/delivery', function(d){ STORE.delivery=d; renderDelivery(d); });
-  cachedFetch('/api/support', function(s){ STORE.support=s; renderSupport(s); });
+  loadSupport();
   cachedFetch('/api/health', function(h){ STORE.health=h; renderHealth(h); }).catch(function(){});
 </script>
 
