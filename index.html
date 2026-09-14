@@ -319,9 +319,10 @@
   // they resolve; instead we render the cached values immediately, then update
   // in place when the live response arrives. Cache holds real prior data (not
   // hardcoded), scoped per-URL, and is only written on a successful response.
+  function bust(url){ return url + (url.indexOf('?')>=0?'&':'?') + '_=' + Date.now(); }
   function cachedFetch(url, apply){
     try { var c = localStorage.getItem('exec:' + url); if (c) { try { apply(JSON.parse(c)); } catch(e){} } } catch(e){}
-    return fetch(url).then(function(r){ return r.json(); }).then(function(d){
+    return fetch(bust(url)).then(function(r){ return r.json(); }).then(function(d){
       if (!d || d.error) return;
       try { apply(d); } catch(e){}
       try { localStorage.setItem('exec:' + url, JSON.stringify(d)); } catch(e){}
@@ -420,7 +421,7 @@
   }
   function loadSupport(){
     try{ var c=localStorage.getItem('exec:support'); if(c){ STORE.support={pendingTickets:JSON.parse(c)}; renderSupport(STORE.support); } }catch(e){}
-    fetch('/api/support').then(function(r){ return r.json(); }).then(function(s){
+    fetch(bust('/api/support')).then(function(r){ return r.json(); }).then(function(s){
       if(s && !supportEmpty(s.pendingTickets)){ applySupport(s.pendingTickets); }
       else { loadSupportDirect(); }
     }).catch(function(){ loadSupportDirect(); });
