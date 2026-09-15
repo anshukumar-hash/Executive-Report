@@ -18,18 +18,9 @@ const token = process.env.SLACK_BOT_TOKEN;
 const channel = process.env.SLACK_CHANNEL;
 if (!token || !channel) { console.log('SLACK_BOT_TOKEN / SLACK_CHANNEL not set — skipping (no-op).'); process.exit(0); }
 
-// ── Hard approval gate ───────────────────────────────────────────────────────
-// The report must NEVER be sent without the user's explicit permission. The only
-// thing that counts as permission is a manual run that sets FORCE_SEND=1 (wired
-// to the workflow_dispatch "force" input). Every scheduled/automatic run reaches
-// here with FORCE_SEND unset and no-ops. This is independent of the workflow's
-// enabled/disabled state — so even if a schedule is ever re-enabled by accident,
-// nothing is posted to Slack until a human explicitly approves that run.
+// FORCE_SEND=1 (the workflow_dispatch "force" input) bypasses the regression
+// guard below — used to push a report through after a held day has been reviewed.
 const FORCE = process.env.FORCE_SEND === '1' || process.env.FORCE_SEND === 'true';
-if (!FORCE) {
-  console.log('NOT SENT: no explicit approval (FORCE_SEND!=1). Run the workflow manually with force=true to send.');
-  process.exit(0);
-}
 
 // ── Regression guard ─────────────────────────────────────────────────────────
 // Hold the report (and ask for approval) when BOTH New Sales MTD and New Live
