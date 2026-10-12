@@ -1,7 +1,7 @@
 # Daily LARR Target Summary snip → Slack
 
 Posts the **Target Summary** table from the Studio Oct Funnel sheet into Slack as an
-image every day at ~18:00 IST.
+image every day at ~06:00 IST.
 
 Run by [`.github/workflows/larr-daily-snip.yml`](../.github/workflows/larr-daily-snip.yml).
 Unrelated to the Executive Report app — it lives here only because the Slack bot
@@ -54,6 +54,6 @@ Needs `poppler` and Pillow: `brew install poppler && python3 -m pip install --us
 
 ## Scheduling
 
-Three cron windows (18:00 / 18:20 / 18:40 IST) because GitHub's scheduler is
+Three cron windows (06:00 / 06:20 / 06:40 IST) because GitHub's scheduler is
 best-effort and often runs late. A gate checks whether a run already succeeded
 today and skips the later windows, so exactly one snip goes out per day.

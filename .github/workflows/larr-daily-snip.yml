@@ -1,14 +1,14 @@
 name: Daily LARR Target Summary → Slack
 
-# Posts the Target Summary table (gid 939349578) as an image at ~18:00 IST daily.
+# Posts the Target Summary table (gid 939349578) as an image at ~06:00 IST daily.
 # GitHub's scheduler is best-effort and routinely runs late, so three windows are
 # registered and a gate skips the later ones once the day's post has gone out.
 
 on:
   schedule:
-    - cron: '30 12 * * *'   # 18:00 IST
-    - cron: '50 12 * * *'   # 18:20 IST (catch-up)
-    - cron: '10 13 * * *'   # 18:40 IST (catch-up)
+    - cron: '30 0 * * *'    # 06:00 IST
+    - cron: '50 0 * * *'    # 06:20 IST (catch-up)
+    - cron: '10 1 * * *'    # 06:40 IST (catch-up)
   workflow_dispatch: {}
 
 concurrency:
