@@ -70,6 +70,29 @@ print("  display  = %s" % disp)
   exit 0
 fi
 
+# --delete-file F0123ABC removes one uploaded snip and the message carrying it.
+# files.delete needs only files:write, which this token has. There is no preview
+# step because listing/inspecting files needs files:read, which it does not have
+# — so the id is taken on trust and the deletion is immediate and permanent.
+if [ "${1:-}" = "--delete-file" ]; then
+  FID="${2:-}"
+  [ -n "${SLACK_BOT_TOKEN:-}" ] || die "SLACK_BOT_TOKEN not set"
+  [ -n "$FID" ] || die "usage: report.sh --delete-file <file id, starts with F>"
+  case "$FID" in
+    F[A-Za-z0-9]*) : ;;
+    *) die "'$FID' is not a Slack file id — expected something like F09ABCDEFGH" ;;
+  esac
+  echo "deleting file $FID"
+  DEL=$(curl -s --max-time 30 -X POST https://slack.com/api/files.delete \
+    -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    --data-urlencode "file=$FID")
+  echo "$DEL" | grep -q '"ok":true' || die "files.delete failed: $DEL"
+  echo "deleted $FID (the message carrying it goes with it)"
+  echo "=== delete ok ==="
+  exit 0
+fi
+
 if [ "$DRY_RUN" = "0" ]; then
   [ -n "${SLACK_BOT_TOKEN:-}" ] || die "SLACK_BOT_TOKEN not set (put it in $HERE/.env)"
   [ -n "${SLACK_CHANNEL_ID:-}" ] || die "SLACK_CHANNEL_ID not set (put it in $HERE/.env)"
@@ -152,5 +175,7 @@ DONE=$(curl -s --max-time 60 -X POST https://slack.com/api/files.completeUploadE
   --data "$PAYLOAD")
 echo "$DONE" | grep -q '"ok":true' || die "files.completeUploadExternal failed: $DONE"
 
-echo "posted to Slack channel $SLACK_CHANNEL_ID"
+echo "posted to Slack channel $SLACK_CHANNEL_ID (file $FILE_ID)"
+# Logged so a post can be withdrawn later without files:read to hunt for it.
+echo "to remove this post: report.sh --delete-file $FILE_ID"
 echo "=== run ok ==="

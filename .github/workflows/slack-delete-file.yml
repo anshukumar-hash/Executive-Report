@@ -1,0 +1,30 @@
+name: Slack — delete one posted snip
+
+# Withdraws a single uploaded file (and the message carrying it) by file id.
+# Get the id from the posting run's log ("file F…"), or in Slack: click the
+# image -> Copy link to file -> the F… segment of the URL.
+#
+# Separate from larr-daily-snip.yml on purpose: that job's gate counts
+# successful runs of its own workflow file, so a delete must not register
+# there as "today's snip already went out".
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: 'Slack file id to delete, e.g. F09ABCDEFGH'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: files.delete
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: bash larr-snip/report.sh --delete-file "${{ inputs.file_id }}"
