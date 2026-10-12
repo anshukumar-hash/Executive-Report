@@ -1,0 +1,59 @@
+name: Daily LARR Target Summary → Slack
+
+# Posts the Target Summary table (gid 939349578) as an image at ~18:00 IST daily.
+# GitHub's scheduler is best-effort and routinely runs late, so three windows are
+# registered and a gate skips the later ones once the day's post has gone out.
+
+on:
+  schedule:
+    - cron: '30 12 * * *'   # 18:00 IST
+    - cron: '50 12 * * *'   # 18:20 IST (catch-up)
+    - cron: '10 13 * * *'   # 18:40 IST (catch-up)
+  workflow_dispatch: {}
+
+concurrency:
+  group: larr-daily-snip
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  snip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate — skip if today's snip already went out
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Manual runs always post.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          TODAY=$(date -u +%Y-%m-%d)
+          CNT=$(gh run list --workflow="larr-daily-snip.yml" --status success \
+                  --json createdAt -R "$GITHUB_REPOSITORY" \
+                  -q "[.[] | select(.createdAt | startswith(\"$TODAY\"))] | length" 2>/dev/null || echo 0)
+          if [ "${CNT:-0}" -gt 0 ]; then
+            echo "Already posted today ($CNT successful run(s)) — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Install poppler + Pillow
+        if: steps.gate.outputs.skip != 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils python3-pil
+
+      - name: Build snip + post to Slack
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL }}
+        run: bash larr-snip/report.sh
