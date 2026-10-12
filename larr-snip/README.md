@@ -32,6 +32,17 @@ The sheet must stay **link-readable**; the script has no Google credentials. If
 sharing is tightened to invite-only, Google returns a sign-in page instead of a
 PDF and the run fails loudly rather than posting a broken image.
 
+## The Slack app
+
+Posts go out as **Spyne_Studio_Bot** (manage it at api.slack.com/apps). The same
+app backs the onboarding (OB) report in `saurabhshah-svg/onboarding_dashboard`
+and the paused `exec-slack.yml` here, so renaming or re-scoping it affects all
+three — and Slack relabels past messages with the app's current name, not the
+one it had when they were posted.
+
+The name shown on each post comes from **App Home → Display Name (Bot Name)**,
+not from the App name on the Basic Information page.
+
 ## Changing the range
 
 `RANGE` defaults to `A1:H42` — the table only. Rows 44+ are the MTD helper block
