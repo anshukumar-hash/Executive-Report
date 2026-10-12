@@ -35,6 +35,41 @@ die() { echo "ERROR: $*"; exit 1; }
 DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
+# --whoami reports which Slack app the token actually belongs to. Posts nothing.
+# Use it when the name on the posts is not the app you think you renamed.
+if [ "${1:-}" = "--whoami" ]; then
+  [ -n "${SLACK_BOT_TOKEN:-}" ] || die "SLACK_BOT_TOKEN not set"
+  WHO=$(curl -s --max-time 30 -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+          https://slack.com/api/auth.test)
+  echo "$WHO" | grep -q '"ok":true' || die "auth.test failed: $WHO"
+  echo "$WHO" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+for k in ("team", "user", "user_id", "bot_id", "url"):
+    print(f"  {k:8} = {d.get(k)}")
+'
+  UID=$(echo "$WHO" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("user_id",""))')
+  # users.info needs users:read; it is only extra detail, so tolerate failure.
+  INFO=$(curl -s --max-time 30 -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+           "https://slack.com/api/users.info?user=$UID")
+  if echo "$INFO" | grep -q '"ok":true'; then
+    echo "$INFO" | python3 -c '
+import sys, json
+p = json.load(sys.stdin)["user"]
+prof = p.get("profile", {})
+app = prof.get("api_app_id") or p.get("api_app_id")
+disp = prof.get("display_name") or "(unset - Slack falls back to real name)"
+print("  app_id   = %s" % app)
+print("  realname = %s" % prof.get("real_name"))
+print("  display  = %s" % disp)
+'
+  else
+    echo "  (users.info unavailable: $(echo "$INFO" | head -c 120))"
+  fi
+  echo "=== whoami ok ==="
+  exit 0
+fi
+
 if [ "$DRY_RUN" = "0" ]; then
   [ -n "${SLACK_BOT_TOKEN:-}" ] || die "SLACK_BOT_TOKEN not set (put it in $HERE/.env)"
   [ -n "${SLACK_CHANNEL_ID:-}" ] || die "SLACK_CHANNEL_ID not set (put it in $HERE/.env)"

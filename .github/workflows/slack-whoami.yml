@@ -1,0 +1,24 @@
+name: Slack — which app does the token belong to?
+
+# Diagnostic only. Calls auth.test and prints the bot identity behind
+# SLACK_BOT_TOKEN. Posts nothing to any channel.
+#
+# Deliberately a separate workflow from larr-daily-snip.yml: that one's gate
+# counts successful runs of its own workflow file, so running this here can
+# never be mistaken for "today's snip already went out".
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  whoami:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: auth.test
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: bash larr-snip/report.sh --whoami
