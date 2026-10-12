@@ -6,7 +6,7 @@
 # trims the page margins, and uploads it to Slack.
 #
 # Config lives in .env next to this script: SLACK_BOT_TOKEN, SLACK_CHANNEL_ID.
-# Scheduled by cron at 18:00 IST — see install-cron.sh.
+# Scheduled at ~06:00 IST by .github/workflows/larr-daily-snip.yml.
 
 set -uo pipefail
 
@@ -48,10 +48,10 @@ d = json.load(sys.stdin)
 for k in ("team", "user", "user_id", "bot_id", "url"):
     print(f"  {k:8} = {d.get(k)}")
 '
-  UID=$(echo "$WHO" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("user_id",""))')
+  BOT_UID=$(echo "$WHO" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("user_id",""))')
   # users.info needs users:read; it is only extra detail, so tolerate failure.
   INFO=$(curl -s --max-time 30 -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-           "https://slack.com/api/users.info?user=$UID")
+           "https://slack.com/api/users.info?user=$BOT_UID")
   if echo "$INFO" | grep -q '"ok":true'; then
     echo "$INFO" | python3 -c '
 import sys, json
