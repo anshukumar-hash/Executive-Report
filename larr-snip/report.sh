@@ -25,9 +25,14 @@ echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') run start ==="
 [ -f "$HERE/.env" ] && set -a && . "$HERE/.env" && set +a
 
 SHEET_ID="${SHEET_ID:-1kE98qnPZ3JC1Q96EMXxOoLuVszb7dJRyPOOIshZ6tpA}"
-GID="${GID:-939349578}"
-RANGE="${RANGE:-A1:H42}"
-SHEET_URL="https://docs.google.com/spreadsheets/d/$SHEET_ID/edit?gid=$GID"
+# SHEET_GID, not GID: zsh treats GID as a special parameter, so `GID=123 ./report.sh`
+# from an interactive shell tries to change the process group and dies with
+# "failed to change group ID" before the script ever starts. GID is still read as
+# a fallback so an existing caller keeps working.
+SHEET_GID="${SHEET_GID:-${GID:-68024667}}"
+RANGE="${RANGE:-B2:H19}"
+REPORT_TITLE="${REPORT_TITLE:-Studio Daily Report}"
+SHEET_URL="https://docs.google.com/spreadsheets/d/$SHEET_ID/edit?gid=$SHEET_GID"
 
 die() { echo "ERROR: $*"; exit 1; }
 
@@ -93,6 +98,29 @@ if [ "${1:-}" = "--delete-file" ]; then
   exit 0
 fi
 
+# --dm someone@company.com sends the report to that person's DM instead of the
+# channel. It only resolves the destination and then falls through to the normal
+# build-and-post path, so the DM and the channel post are the same image built
+# the same way. Needs two scopes this app may not carry -- users:read.email to
+# turn an address into a user id, im:write to open the DM -- and Slack names the
+# missing one, so a failure here says exactly what to add.
+if [ "${1:-}" = "--dm" ]; then
+  DM_EMAIL="${2:-}"
+  [ -n "${SLACK_BOT_TOKEN:-}" ] || die "SLACK_BOT_TOKEN not set"
+  [ -n "$DM_EMAIL" ] || die "usage: report.sh --dm <email>"
+  LU=$(curl -s --max-time 30 -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        --data-urlencode "email=$DM_EMAIL" https://slack.com/api/users.lookupByEmail)
+  echo "$LU" | grep -q '"ok":true' || die "users.lookupByEmail failed: $LU"
+  DM_UID=$(echo "$LU" | python3 -c 'import sys,json;print(json.load(sys.stdin)["user"]["id"])')
+  OPEN=$(curl -s --max-time 30 -X POST https://slack.com/api/conversations.open \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        --data-urlencode "users=$DM_UID")
+  echo "$OPEN" | grep -q '"ok":true' || die "conversations.open failed: $OPEN"
+  SLACK_CHANNEL_ID=$(echo "$OPEN" | python3 -c 'import sys,json;print(json.load(sys.stdin)["channel"]["id"])')
+  echo "resolved $DM_EMAIL -> user $DM_UID, dm channel $SLACK_CHANNEL_ID"
+fi
+
 if [ "$DRY_RUN" = "0" ]; then
   [ -n "${SLACK_BOT_TOKEN:-}" ] || die "SLACK_BOT_TOKEN not set (put it in $HERE/.env)"
   [ -n "${SLACK_CHANNEL_ID:-}" ] || die "SLACK_CHANNEL_ID not set (put it in $HERE/.env)"
@@ -102,7 +130,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 # --- 1. export the range as PDF -------------------------------------------
-EXPORT_URL="https://docs.google.com/spreadsheets/d/$SHEET_ID/export?format=pdf&gid=$GID&range=$RANGE&portrait=true&scale=4&gridlines=false&printtitle=false&sheetnames=false&pagenum=UNDEFINED&attachment=false&top_margin=0.15&bottom_margin=0.15&left_margin=0.15&right_margin=0.15"
+EXPORT_URL="https://docs.google.com/spreadsheets/d/$SHEET_ID/export?format=pdf&gid=$SHEET_GID&range=$RANGE&portrait=true&scale=4&gridlines=false&printtitle=false&sheetnames=false&pagenum=UNDEFINED&attachment=false&top_margin=0.15&bottom_margin=0.15&left_margin=0.15&right_margin=0.15"
 
 HTTP=$(curl -sL --max-time 90 -o "$WORK/snip.pdf" -w '%{http_code}' "$EXPORT_URL") \
   || die "curl failed fetching the sheet export"
@@ -144,7 +172,7 @@ fi
 
 # --- 3. upload to Slack ----------------------------------------------------
 TODAY=$(date '+%d %b %Y')
-FILENAME="larr-target-summary-$(date '+%Y-%m-%d').png"
+FILENAME="studio-daily-report-$(date '+%Y-%m-%d').png"
 
 UP=$(curl -s --max-time 60 -X POST https://slack.com/api/files.getUploadURLExternal \
   -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
@@ -158,10 +186,10 @@ FILE_ID=$(echo "$UP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["f
 curl -s --max-time 120 -f -F "file=@$WORK/snip.png" "$UPLOAD_URL" > /dev/null \
   || die "uploading the image bytes to Slack failed"
 
-COMMENT=":bar_chart: *Target Summary — $TODAY*
+COMMENT=":bar_chart: *$REPORT_TITLE — $TODAY*
 <$SHEET_URL|Open the sheet>"
 
-PAYLOAD=$(FILE_ID="$FILE_ID" CH="$SLACK_CHANNEL_ID" TITLE="Target Summary — $TODAY" CMT="$COMMENT" python3 -c '
+PAYLOAD=$(FILE_ID="$FILE_ID" CH="$SLACK_CHANNEL_ID" TITLE="$REPORT_TITLE — $TODAY" CMT="$COMMENT" python3 -c '
 import json, os
 print(json.dumps({
     "files": [{"id": os.environ["FILE_ID"], "title": os.environ["TITLE"]}],

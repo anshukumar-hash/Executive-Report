@@ -1,0 +1,31 @@
+name: Slack — send the report as a test DM
+
+# Builds the Studio Daily Report and sends it to one person's DM rather than the
+# channel, so a format change can be checked without posting to the group.
+#
+# Its own workflow because larr-daily-snip.yml is disabled and a disabled
+# workflow cannot be dispatched — and because a test send must never register
+# with that job's "already posted today" gate.
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'Slack account email to DM the report to'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poppler + Pillow
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils python3-pil
+      - name: Build + DM
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: bash larr-snip/report.sh --dm "${{ inputs.email }}"
