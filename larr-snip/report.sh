@@ -169,6 +169,58 @@ PY
 SIZE=$(wc -c < "$WORK/snip.png" | tr -d ' ')
 echo "image ready: $SIZE bytes"
 
+# --- 2b. the date the report is FOR, read from the sheet --------------------
+# NOT today's clock. The team works the US shift, so the 06:00 IST post carries
+# the PREVIOUS day's numbers -- dating it "14 Oct" made a 13 Oct report read as
+# the wrong day. Reading the sheet's own "Report date" cell also means the Slack
+# title can never disagree with the image underneath it, which a date computed
+# here would eventually do the first time the sheet lagged a day.
+curl -sL --max-time 60 -o "$WORK/report.csv" \
+  "https://docs.google.com/spreadsheets/d/$SHEET_ID/export?format=csv&gid=$SHEET_GID" || true
+DATES=$(python3 - "$WORK/report.csv" <<'PY'
+import csv, sys, datetime
+
+value = None
+try:
+    with open(sys.argv[1], newline='', encoding='utf-8') as f:
+        for row in csv.reader(f):
+            cells = [c.strip() for c in row]
+            for i, c in enumerate(cells):
+                if c.lower() == 'report date':
+                    rest = [x for x in cells[i + 1:] if x]
+                    if rest:
+                        value = rest[0]
+                    break
+            if value:
+                break
+except Exception:
+    pass
+
+d = None
+for fmt in ('%b %d, %Y', '%B %d, %Y', '%d-%b-%y', '%d-%b-%Y',
+            '%Y-%m-%d', '%d %b %Y', '%d %B %Y', '%m/%d/%Y'):
+    if not value:
+        break
+    try:
+        d = datetime.datetime.strptime(value, fmt)
+        break
+    except ValueError:
+        pass
+
+# Fall back to yesterday, not today -- the US-shift report is always a day back,
+# so yesterday is the least wrong guess when the cell cannot be read.
+if d is None:
+    d = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+    sys.stderr.write('WARN: could not read the sheet Report date cell; '
+                     'falling back to yesterday\n')
+
+print(d.strftime('%d %b %Y') + '|' + d.strftime('%Y-%m-%d'))
+PY
+)
+REPORT_DATE=${DATES%%|*}
+REPORT_SLUG=${DATES##*|}
+echo "report is for: $REPORT_DATE"
+
 if [ "$DRY_RUN" = "1" ]; then
   cp "$WORK/snip.png" "$HERE/preview.png"
   echo "dry run — wrote $HERE/preview.png, nothing posted to Slack"
@@ -177,8 +229,8 @@ if [ "$DRY_RUN" = "1" ]; then
 fi
 
 # --- 3. upload to Slack ----------------------------------------------------
-TODAY=$(date '+%d %b %Y')
-FILENAME="studio-daily-report-$(date '+%Y-%m-%d').png"
+TODAY="$REPORT_DATE"
+FILENAME="studio-daily-report-$REPORT_SLUG.png"
 
 UP=$(curl -s --max-time 60 -X POST https://slack.com/api/files.getUploadURLExternal \
   -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
