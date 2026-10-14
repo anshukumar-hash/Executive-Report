@@ -40,8 +40,21 @@ and the paused `exec-slack.yml` here, so renaming or re-scoping it affects all
 three — and Slack relabels past messages with the app's current name, not the
 one it had when they were posted.
 
+App id **A0BJCRNNPJB**, bot user `U0BJW4XDY3T`, bot id `B0BJS7K0RL6`.
+
 The name shown on each post comes from **App Home → Display Name (Bot Name)**,
-not from the App name on the Basic Information page.
+not from the App name on the Basic Information page — and a change to it only
+reaches the workspace after **Settings → Install App → Reinstall to Workspace**.
+Reinstalling without touching scopes keeps the existing token; adding a scope
+issues a new one and `SLACK_BOT_TOKEN` must be updated with it.
+
+**Do not use `--whoami` to check the name.** `auth.test` returns the bot's
+*handle* (`user` = `executivereportbot`), which Slack never renamed and never
+will — it is a different field from the display name and is permanently stale.
+Reading the real display name needs `users:read`, which this token lacks. The
+rename was verified from the Slack app profile instead, and that is the only
+free way to confirm it. Treating that stale handle as evidence cost several
+rounds of chasing the wrong app.
 
 ## Changing the range
 
