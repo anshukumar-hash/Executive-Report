@@ -55,13 +55,26 @@ reaches the workspace after **Settings → Install App → Reinstall to Workspac
 Reinstalling without touching scopes keeps the existing token; adding a scope
 issues a new one and `SLACK_BOT_TOKEN` must be updated with it.
 
-**Do not use `--whoami` to check the name.** `auth.test` returns the bot's
-*handle* (`user` = `executivereportbot`), which Slack never renamed and never
-will — it is a different field from the display name and is permanently stale.
-Reading the real display name needs `users:read`, which this token lacks. The
-rename was verified from the Slack app profile instead, and that is the only
-free way to confirm it. Treating that stale handle as evidence cost several
-rounds of chasing the wrong app.
+**`--whoami`'s `user` field is the real signal.** It names the *installed bot
+user*, which is what Slack renders on each post. As of 2026-10-14 it still reads
+`executivereportbot` and the posts still say `Executive_Report_Bot`, even though
+the app's own Display Name was changed to `Spyne_Studio_Bot` and the app was
+reinstalled. Editing an app's display info does not rename an already-installed
+bot user, and a plain "Reinstall to Workspace" did not either.
+
+Two possibilities remain, and they have not been told apart yet:
+
+1. The renamed app (`A0BJCRNNPJB`) is **not** the app behind this token. The free
+   way to check: click the bot's name **on the message in Slack** — the profile
+   that opens is the posting app. Searching the app list instead can show a
+   different app with the same intended name.
+2. It is the right app, and the bot user needs the app **removed from the
+   workspace and installed fresh**, not merely reinstalled.
+
+Option 2 rotates the token and un-invites the bot from every channel. The token
+is shared with the OB report in `saurabhshah-svg/onboarding_dashboard`, so that
+repo's secret has to be updated too or that report breaks. Confirm which app is
+actually posting before taking that route.
 
 ## Changing the range
 
