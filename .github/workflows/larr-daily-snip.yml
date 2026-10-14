@@ -23,7 +23,7 @@ jobs:
   snip:
     runs-on: ubuntu-latest
     steps:
-      - name: Gate — skip if today's snip already went out
+      - name: Gate — skip if a snip went out recently
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,12 +32,19 @@ jobs:
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          TODAY=$(date -u +%Y-%m-%d)
-          CNT=$(gh run list --workflow="larr-daily-snip.yml" --status success \
+          # A ROLLING WINDOW, NOT THE UTC CALENDAR DAY. 06:00 IST is 00:30 UTC,
+          # so a manual post late in the IST evening lands on the PREVIOUS UTC
+          # date and the morning run saw a clean slate and posted again minutes
+          # later. That duplicate had to be deleted by hand twice. Six hours is
+          # long enough to cover the two catch-up windows and a just-sent manual
+          # post, short enough that an early-evening send does not suppress the
+          # next morning's report.
+          CUTOFF=$(date -u -d '6 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          CNT=$(gh run list --workflow="larr-daily-snip.yml" --status success --limit 50 \
                   --json createdAt -R "$GITHUB_REPOSITORY" \
-                  -q "[.[] | select(.createdAt | startswith(\"$TODAY\"))] | length" 2>/dev/null || echo 0)
+                  -q "[.[] | select(.createdAt > \"$CUTOFF\")] | length" 2>/dev/null || echo 0)
           if [ "${CNT:-0}" -gt 0 ]; then
-            echo "Already posted today ($CNT successful run(s)) — skipping."
+            echo "Posted $CNT time(s) since $CUTOFF — skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
