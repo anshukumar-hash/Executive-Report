@@ -1,7 +1,8 @@
-# Daily LARR Target Summary snip → Slack
+# Daily Studio Report snip → Slack
 
-Posts the **Target Summary** table from the Studio Oct Funnel sheet into Slack as an
-image every day at ~06:00 IST.
+Posts the **Studio Daily Report** table (gid `68024667`) into Slack as an image
+every day at ~06:00 IST. It replaced the old Target Summary layout
+(gid `939349578`, `A1:H42`) on 2026-10-14.
 
 Run by [`.github/workflows/larr-daily-snip.yml`](../.github/workflows/larr-daily-snip.yml).
 Unrelated to the Executive Report app — it lives here only because the Slack bot
@@ -12,13 +13,14 @@ token is already a secret in this repo.
 Rather than re-rendering the table in HTML (which means re-implementing the
 conditional formatting and letting it drift), the script asks Google Sheets to
 export the range as a PDF. Google applies the real cell formatting, so the snip
-always matches what people see in the tab — greens, reds, the boxed MTD cells
-and the yellow Grand Total block included.
+always matches what people see in the tab — the banded section headers, the
+conditional greens and ambers, the blue MTD figures and red churn included.
 
-1. `GET /export?format=pdf&range=A1:H42&scale=4` on the sheet.
-2. `pdftoppm` renders page 1 at 200 dpi. (Page 2 is only a footnote sliver.)
+1. `GET /export?format=pdf&range=B2:H19&scale=4` on the sheet.
+2. `pdftoppm` renders page 1 at 200 dpi.
 3. Pillow trims the page margins to the table's bounding box.
-4. Slack `files.getUploadURLExternal` → upload → `files.completeUploadExternal`.
+4. The post is dated from the sheet's own **Report date** cell — see below.
+5. Slack `files.getUploadURLExternal` → upload → `files.completeUploadExternal`.
 
 ## Config
 
@@ -26,7 +28,12 @@ and the yellow Grand Total block included.
 |---|---|---|
 | `SLACK_BOT_TOKEN` | repo secret | shared with the Executive Report job |
 | `SLACK_CHANNEL` | repo secret | mapped to `SLACK_CHANNEL_ID` in the workflow |
-| `SHEET_ID` / `GID` / `RANGE` | defaults in `report.sh` | override via env |
+| `SHEET_ID` / `SHEET_GID` / `RANGE` | defaults in `report.sh` | override via env |
+| `REPORT_TITLE` | default in `report.sh` | `Studio Daily Report` |
+
+`SHEET_GID`, not `GID`: zsh treats `GID` as a special parameter, so
+`GID=123 ./report.sh` dies with *"failed to change group ID"* before the script
+starts. `GID` is still read as a fallback for an existing caller.
 
 The sheet must stay **link-readable**; the script has no Google credentials. If
 sharing is tightened to invite-only, Google returns a sign-in page instead of a
@@ -58,9 +65,18 @@ rounds of chasing the wrong app.
 
 ## Changing the range
 
-`RANGE` defaults to `A1:H42` — the table only. Rows 44+ are the MTD helper block
-and footnotes, deliberately excluded. If rows are inserted above row 42, widen
-the range or the bottom of the table gets cut off.
+`RANGE` defaults to `B2:H19` — the title block through the last Customer-success
+row. Column A is empty padding in this tab, so the range starts at B. If rows are
+added below row 19, widen it or the bottom of the table gets cut off.
+
+## The report date
+
+The team works the **US shift**, so the 06:00 IST post carries the *previous*
+day's numbers. The title is read from the sheet's own "Report date" cell rather
+than computed from the clock, so it can never disagree with the image beneath
+it. If that cell cannot be parsed the script falls back to yesterday and logs a
+`WARN`. Do not replace this with `date` — a 13 Oct report titled 14 Oct is the
+bug it was written to fix.
 
 ## Running it by hand
 
