@@ -47,11 +47,17 @@ if [ "${1:-}" = "--whoami" ]; then
   WHO=$(curl -s --max-time 30 -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
           https://slack.com/api/auth.test)
   echo "$WHO" | grep -q '"ok":true' || die "auth.test failed: $WHO"
+  # EVERY key, not a hand-picked five. The question this tool exists to answer
+  # is "which app is this token", and auth.test carries app_id -- which the
+  # original five-field list quietly dropped, leaving the answer unreachable
+  # for several rounds of guessing. auth.test returns no secret material.
   echo "$WHO" | python3 -c '
 import sys, json
 d = json.load(sys.stdin)
-for k in ("team", "user", "user_id", "bot_id", "url"):
-    print(f"  {k:8} = {d.get(k)}")
+for k in sorted(d):
+    if k == "ok":
+        continue
+    print("  %-14s = %s" % (k, d[k]))
 '
   BOT_UID=$(echo "$WHO" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("user_id",""))')
   # users.info needs users:read; it is only extra detail, so tolerate failure.
