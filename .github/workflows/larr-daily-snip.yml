@@ -1,8 +1,19 @@
 name: Daily LARR Target Summary → Slack
 
-# Posts the Target Summary table (gid 939349578) as an image at ~06:00 IST daily.
-# GitHub's scheduler is best-effort and routinely runs late, so three windows are
-# registered and a gate skips the later ones once the day's post has gone out.
+# Posts the Studio Daily Report (gid 68024667) as an image at 06:00 IST.
+#
+# THE PRIMARY TRIGGER IS EXTERNAL. cron-job.org calls the workflow_dispatch REST
+# API at 06:00 IST. The cron windows below are a BACKUP only.
+#
+# Why: GitHub's scheduler is best-effort and deferred this job by ~4.5 hours
+# every day from 14-17 Oct 2026 (00:30 UTC due, 04:50-05:13 actual), landing it
+# near 10:30 IST instead of 06:00. That is not tunable from here, and the short
+# catch-up windows were sized for a delay of minutes, which was the wrong
+# problem. If the external trigger ever dies, these windows still deliver the
+# report late rather than not at all.
+#
+# The gate counts successful runs in a rolling 6h window, so whichever trigger
+# fires first wins and the other skips.
 
 on:
   schedule:
